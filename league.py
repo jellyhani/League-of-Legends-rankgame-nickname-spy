@@ -7,8 +7,6 @@ import urllib3
 import time
 import os
 
-
-
 process_name = 'LeagueClientUx.exe'
 
 def check_process():
@@ -74,10 +72,9 @@ def lobby():
         lobby_check = requests.get(riot_api+'/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
         if lobby_check_json == 'ChampSelect':
-                
                 if not search_performed:
                     if client_port:
-                        url = client_api + '/chat/v5/participants/champ-select/'
+                        url = client_api + '/chat/v5/participants/champ-select'
                         response = requests.get(url, verify=False)
                         if response.status_code == 200:
                             parsed_json = json.loads(response.text)
