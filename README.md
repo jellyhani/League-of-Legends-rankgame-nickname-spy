@@ -1,4 +1,6 @@
 # league-of-legends-rank-name-spy
+다운로드 -> https://github.com/jellyhani/league-of-legends-rank-name-spy/releases <br>
+exe 파일만 받으면 됩니다 <br>
 리그오브레전드 랭크게임 멀티서치(opgg)<br>
 프로그램 실행시 자동으로 롤 클라이언트 프로세스를 검색합니다<br>
 롤 클라이언트를 실행하지 않았다면 5초마다 프로세스를 확인합니다.<br>
