@@ -89,9 +89,9 @@ def lobby():
                                     'Content-Type': 'application/json'
                                 }
                                 opgg_get_headers = headers
-                                opgg_serch = requests.get(opgg_get, headers=opgg_get_headers)
+                                opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
                                 if response.status_code == 200:
-                                    soup = BeautifulSoup(opgg_serch.content, 'html.parser')
+                                    soup = BeautifulSoup(opgg_search.content, 'html.parser')
                                     script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
                                     if script_tag:
                                         script_content = script_tag.string
