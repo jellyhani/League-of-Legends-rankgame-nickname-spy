@@ -11,8 +11,6 @@ from bs4 import BeautifulSoup
 process_name = 'LeagueClientUx.exe'
 
 def check_process():
-    global tokens
-    global output
     global riot_port
     global riot_token
     global client_port
