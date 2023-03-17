@@ -12,7 +12,7 @@ lcu api 기반으로 작동합니다.<br>
 1.1 opgg멀티서치 전적 새로고침을 자동화합니다<br>
 1.0 opgg멀티서치를 지원합니다.<br>
 <br>
-https://www.virustotal.com/gui/file/a87db0679944edf571eed39c2fe70d37acb79791bde04481e1cc779c4f304f8e?nocache=1<br>
+https://www.virustotal.com/gui/file/9be1f64f16c4f7af455b248d9a433286350d716658ebb0da635e0c07bb3f10e6?nocache=1<br>
 ![league](https://user-images.githubusercontent.com/62514874/224506726-24066b6d-ea3c-4bc2-9c33-df4e8f32130e.PNG)<br>
 
 
