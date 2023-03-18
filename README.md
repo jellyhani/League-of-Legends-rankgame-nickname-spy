@@ -1,6 +1,4 @@
 # league-of-legends-rank-name-spy
-바이러스 없는데.. 오탐지 뜨네 해결 해보겠습니다 정 의심되면 league.py 받아서 파이썬으로 직접 실행해보세요 또는 코드 복사해서 chatgpt 에게 물어봐보세요 바이러스로 걸릴만한게 없는거같은데 해결해볼게요..<br>
-
 다운로드 -> https://github.com/jellyhani/league-of-legends-rank-name-spy/releases <br>
 exe 파일만 받으면 됩니다 <br>
 리그오브레전드 랭크게임 멀티서치(opgg)<br>
