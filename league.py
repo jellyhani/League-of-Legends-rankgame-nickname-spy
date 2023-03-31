@@ -39,17 +39,17 @@ def check_process():
                         region = value
                 riot_api = f'https://riot:{riot_token}@127.0.0.1:{riot_port}'
                 client_api = f'https://riot:{client_token}@127.0.0.1:{client_port}'
-
+                time.sleep(10)
                 lobby(client_port, region, riot_api, client_api)
             else:
                 print(f"{process_name} process not found. Retrying...", end="\r")
         except subprocess.CalledProcessError:
             print(f"Error: {process_name} process not found. Retrying...", end="\r")
         os.system('cls' if os.name=='nt' else 'clear')
+        
 
 def lobby(client_port, region, riot_api, client_api):
     search_performed = False
-    time.sleep(10)
     while True:
         lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
