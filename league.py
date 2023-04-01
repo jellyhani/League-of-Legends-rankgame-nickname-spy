@@ -50,9 +50,11 @@ def check_process():
 
 def lobby(client_port, region, riot_api, client_api):
     search_performed = False
+    ready = False
     while True:
         lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
+        
         if lobby_check_json == 'ChampSelect':
             text = lobby_check.text
             formatted_text = f"{text:<18}"
@@ -123,8 +125,14 @@ def lobby(client_port, region, riot_api, client_api):
                                 search_performed = True
                     else:
                         print("Error:", response.status_code)     
+        elif lobby_check_json == 'ReadyCheck':
+            if not ready:
+                response = requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
+                ready = True
+            
         else:
             search_performed = False
+            ready = False
             output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
                 text = lobby_check.text
