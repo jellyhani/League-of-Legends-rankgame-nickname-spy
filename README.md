@@ -6,7 +6,7 @@ exe 파일만 받으면 됩니다 <br>
 롤 클라이언트를 실행하지 않았다면 프로세스를 재 확인합니다.<br>
 챔피언 선택창일 경우 현재 팀원들의 닉네임을 opgg로 검색합니다.<br><br>
 lcu api 기반으로 작동합니다.<br>
-문의는 좌측 상단 issues 탭에서 해주세요<br>
+문의는 좌측 상단 issues 탭 or https://www.youtube.com/channel/UC0GkZ32n35grJA2eYzI-mrg 에서 해주세요<br>
 <br>
 1.4 게임 매칭시 자동수락 기능 추가 <br>
 1.3 프로그램 먼저 실행시 꺼지던 오류 수정<br>
