@@ -14,7 +14,7 @@ lcu api 기반으로 작동합니다.<br>
 1.1 opgg멀티서치 항상 최신전적을 볼 수 있습니다<br>
 1.0 opgg멀티서치를 지원합니다.<br>
 <br>
-https://www.virustotal.com/gui/file/7dabc893ccf77a8b57fe8af5c51d42a13a222c76b8987d311c08167a31b362bf?nocache=1<br>
+https://www.virustotal.com/gui/file/b9084b28acc51a89d70657695d38b047a96539676eaad01f905c8de9d8d5526d?nocache=1<br>
 ![league](https://user-images.githubusercontent.com/62514874/224506726-24066b6d-ea3c-4bc2-9c33-df4e8f32130e.PNG)<br>
 
 
