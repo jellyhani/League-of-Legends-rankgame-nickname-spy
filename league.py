@@ -38,7 +38,7 @@ def check_process():
                     if token == "--remoting-auth-token=":
                         riot_token = value
                     if token == "--region=":
-                        region = value
+                        region = "oce" if value.lower() == "oc1" else value
                 riot_api = f'https://riot:{riot_token}@127.0.0.1:{riot_port}'
                 client_api = f'https://riot:{client_token}@127.0.0.1:{client_port}'
                 time.sleep(10)
@@ -66,7 +66,7 @@ def lobby(region, riot_api, client_api):
         if chatlog_json["messages"]:
             messages_exist = True
             for message in chatlog_json["messages"]:
-                timestamp = int(message["time"]) / 1000.0
+                timestamp = int(message["time"])
                 if timestamp > last_printed_time:
                     last_printed_time = timestamp
                     body = message["body"]
@@ -83,7 +83,7 @@ def lobby(region, riot_api, client_api):
             print(formatted_text.replace('"', ''), end="\r")
             cleared_text = formatted_text[:len(text)]
             print(cleared_text.replace('"', ''), end="\r")
-        
+
             if not search_performed:
                 url = client_api + '/chat/v5/participants/champ-select'
                 response = requests.get(url, verify=False)
@@ -91,6 +91,7 @@ def lobby(region, riot_api, client_api):
                 names = []
                 for participant in parsed_json["participants"]:
                     names.append(participant["name"])
+                    
                     summoner_name = names[-1]
                     opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
                     headers = {
@@ -137,6 +138,7 @@ def lobby(region, riot_api, client_api):
                             print(f'Error accessing key: {e}')
                     else:
                         print('Script tag with id="__NEXT_DATA__" not found')
+                    
                     if len(names) == 5:
                         opgg_url = f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names))
                         webbrowser.open(opgg_url)
@@ -146,7 +148,7 @@ def lobby(region, riot_api, client_api):
             if not ready:
                 response = requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
                 ready = True
-        
+            
         else:
             search_performed = False
             ready = False
