@@ -151,6 +151,9 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Debug_btn.setSizePolicy(sizePolicy)
         self.Debug_btn.setObjectName("Debug_btn")
         self.horizontalLayout_2.addWidget(self.Debug_btn)
+        self.Dodge = QtWidgets.QPushButton(League_Multisearch)
+        self.Dodge.setObjectName("Dodge")
+        self.horizontalLayout_2.addWidget(self.Dodge)
         self.Github_btn = QtWidgets.QPushButton(League_Multisearch)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -197,9 +200,31 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.6  | 최신버전 : " + format(update_version_number)))
         self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
+        self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
         
         self.Github_btn.clicked.connect(self.open_github)
         self.Debug_btn.clicked.connect(self.open_debug)
+        self.Dodge.clicked.connect(self.dodge)
+
+    def dodge(self):
+        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
+        self.client_api = client_api
+        self.client_token = client_token
+        self.riot_api = riot_api
+        self.riot_port = riot_port
+        self.riot_token = riot_token
+        self.client_port = client_port
+        self.region = region
+
+        process_name = 'LeagueClientUx.exe'
+        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
+        if process_name in output:
+            dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
+            body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
+            response = requests.post(dodge, data=body, verify=False)
+            print(response.text)
+        else:
+            pass
 
     def open_github(self):
         url = QUrl("https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy")
@@ -364,7 +389,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                     print('Script tag with id="__NEXT_DATA__" not found')
                                 
                                 
-                                if len(names) == 1:
+                                if len(names) == 5:
                                     search_performed = True
                                     opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                     deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
@@ -418,13 +443,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                         print(f'Error accessing key: {e}')
                                 else:
                                     print('Script tag with id="__NEXT_DATA__" not found')
-                                if len(names) == 1:
+                                if len(names) == 5:
                                     opgg_url2 = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(opgg_url2)
                             elif self.DeepLOL_check.isChecked():
                                 summoner_name = names[-1]
                                 search_performed = True
-                                if len(names) == 1:
+                                if len(names) == 5:
                                     deeplol_url2 = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(deeplol_url2)
                     elif Status == "ReadyCheck":
@@ -500,7 +525,7 @@ class DebugDialog(QtWidgets.QDialog):
             not_found_label = QtWidgets.QLabel("LeagueClientUx.exe process not found.")
             self.layout.addWidget(not_found_label)
         self.exec_()
-
+        
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
