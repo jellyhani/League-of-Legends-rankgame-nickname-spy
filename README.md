@@ -8,6 +8,7 @@ exe 파일만 받으면 됩니다 <br>
 lcu api 기반으로 작동합니다.<br>
 문의는 좌측 상단 issues 탭 or https://www.youtube.com/channel/UC0GkZ32n35grJA2eYzI-mrg 에서 해주세요<br>
 <br>
+1.6 DeepLoL 멀티서치를 추가했습니다. 기존 cmd 창에서 별도 GUI 로 구동되게 변경 되었습니다.<
 1.5.1 오세아니아 지역 에러를 수정했습니다 <br>
 1.5 픽창에서 누가 채팅을 친건지 닉네임과 내용을 확인할 수 있습니다<br>
 1.4 게임 매칭시 자동수락 기능 추가 <br>
