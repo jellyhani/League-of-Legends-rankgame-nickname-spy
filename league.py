@@ -12,9 +12,6 @@ import urllib3
 import urllib
 
 
-
-
-
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 last_printed_time = 0
 messages_exist = False
@@ -288,8 +285,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             self.client_port = client_port
             self.region = region
 
-
-            # make API requests and update UI
             process_name = 'LeagueClientUx.exe'
             output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
@@ -390,11 +385,11 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                 
                                 
                                 if len(names) == 5:
-                                    search_performed = True
                                     opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                     deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(opgg_url)
                                     QDesktopServices.openUrl(deeplol_url)  
+                                    search_performed = True
                             elif self.OPGG_check.isChecked():
                                 summoner_name = names[-1]
                                 opgg_get2 = f"https://www.op.gg/summoners/{region}/{summoner_name}"
@@ -436,7 +431,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                         opgg_post_headers = headers
                                         response = requests.post(opgg_post, headers=opgg_post_headers)
                                         response = requests.get(opgg_refresh, headers=opgg_get_headers2)
-                                        search_performed = True
                                     except json.JSONDecodeError as e:
                                         print(f'Error decoding JSON: {e}')
                                     except KeyError as e:
@@ -446,13 +440,15 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                 if len(names) == 5:
                                     opgg_url2 = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(opgg_url2)
+                                    search_performed = True
                             elif self.DeepLOL_check.isChecked():
                                 summoner_name = names[-1]
-                                search_performed = True
                                 if len(names) == 5:
                                     deeplol_url2 = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(deeplol_url2)
+                                    search_performed = True
                     elif Status == "ReadyCheck":
+                        search_performed = False
                         if self.Auto_Ready.isChecked():
                             if not ready:
                                 response = requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
@@ -469,11 +465,14 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                     self.status.setText("Status: Error")
                     self.Nickname_label.setText("")
                     messages_exist = False
+                    search_performed = False
                     self.Messages_textedit.clear()
+                
             else:
                 self.status.setText("Status: Not Connected")
                 self.Nickname_label.setText("")
                 messages_exist = False
+                search_performed = False
                 self.Messages_textedit.clear()
 
 class DebugDialog(QtWidgets.QDialog):
