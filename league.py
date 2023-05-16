@@ -1,6 +1,7 @@
 from datetime import datetime
 import json
 import subprocess
+import time
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QUrl, QTimer
 from PyQt5.QtGui import QDesktopServices
@@ -164,6 +165,9 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Auto_Ready = QtWidgets.QCheckBox(League_Multisearch)
         self.Auto_Ready.setObjectName("Auto_Ready")
         self.verticalLayout_4.addWidget(self.Auto_Ready)
+        self.dodge_check = QtWidgets.QCheckBox(League_Multisearch)
+        self.dodge_check.setObjectName("dodge_check")
+        self.verticalLayout_4.addWidget(self.dodge_check)
 
         self.Messages_textedit = QtWidgets.QTextEdit(self.scrollAreaWidgetContents)
         self.Messages_textedit.setEnabled(True)
@@ -194,7 +198,8 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url = "https://raw.githubusercontent.com/jellyhani/League-of-Legends-rankgame-nickname-spy/main/version.txt"
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.6  | 최신버전 : " + format(update_version_number)))
+        self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.7.1  | 최신버전 : " + format(update_version_number)))
         self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -213,14 +218,49 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.client_port = client_port
         self.region = region
 
+        zero_dodge = True
+        lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+        lobby_check_json = json.loads(lobby_check.text)
+
         process_name = 'LeagueClientUx.exe'
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
-        if process_name in output:
-            dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
-            body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
-            response = requests.post(dodge, data=body, verify=False)
-            print(response.text)
+        if process_name in output and lobby_check_json == 'ChampSelect':
+            if self.dodge_check.isChecked():
+                while True and lobby_check_json == 'ChampSelect':
+                    check = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
+                    check_json = json.loads(check.text)
+                    phase = check_json['timer']['phase']
+                    if phase == 'FINALIZATION' and zero_dodge:
+                        current_time_ms = int(time.time() * 1000)
+                        print(str(current_time_ms) + " 29.7초 후 닷지 전")
+                        time.sleep(29.7)
+                        dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
+                        body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
+                        response = requests.post(dodge, data=body, verify=False)
+                        current_time_ms2 = int(time.time() * 1000)
+                        print(str(current_time_ms2) + " 29.7초 후 닷지명령어 전달 후")
+                        new_time_ms = int(time.time() * 1000)
+                        time_difference_ms = new_time_ms - current_time_ms
+                        print(time_difference_ms)
+                        print(response.text)
+                        zero_dodge = False
+                        break
+                    else:
+                        if lobby_check_json != 'ChampSelect':
+                            break
+                        # nowtimems = check_json['timer']['internalNowInEpochMs']
+                        # print(nowtimems)
+                        # print("not found FINALIZATION" + "\n now phase " + phase)
+                        pass
+            else:
+                print("not zero-dodge checked")
+                dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
+                body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
+                response = requests.post(dodge, data=body, verify=False)
+                print(response)
+                   
         else:
+            print("not found " + process_name + " or ChampSelect")
             pass
 
     def open_github(self):
@@ -336,53 +376,56 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                             self.Nickname_label.setText("")
                         if not search_performed:
                             if self.DeepLOL_check.isChecked() and self.OPGG_check.isChecked():
-                                summoner_name = names[-1]
-                                opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
-                                headers = {
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-                                    'Accept-Language': 'en-US,en;q=0.9',
-                                    'Accept-Encoding': 'gzip, deflate, br',
-                                    'Connection': 'keep-alive',
-                                    'Content-Type': 'application/json'
-                                }
-                                opgg_get_headers = headers
-                                opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
-                                soup = BeautifulSoup(opgg_search.content, 'html.parser')
-                                script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
-                                if script_tag:
-                                    script_content = script_tag.string
-                                    try:
-                                        json_data = json.loads(script_content)
-                                        summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                        opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
-                                        opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
-                                        headers = {
-                                            'Accept': 'application/json, text/plain, */*',
-                                            'Accept-Encoding': 'gzip, deflate, br',
-                                            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,yes;q=0.6,zh-CN;q=0.5,zh;q=0.4',
-                                            'Cache-Control': 'no-cache',
-                                            'Content-Length': '0',
-                                            'Origin': 'https://www.op.gg',
-                                            'Pragma': 'no-cache',
-                                            'Referer': 'https://www.op.gg/',
-                                            'Sec-Ch-Ua': '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
-                                            'Sec-Ch-Ua-Mobile': '?0',
-                                            'Sec-Ch-Ua-Platform': '"Windows"',
-                                            'Sec-Fetch-Dest': 'empty',
-                                            'Sec-Fetch-Mode': 'cors',
-                                            'Sec-Fetch-Site': 'same-site',
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
-                                        }
-                                        opgg_post_headers = headers
-                                        response = requests.post(opgg_post, headers=opgg_post_headers)
-                                        response = requests.get(opgg_refresh, headers=opgg_get_headers)
-                                    except json.JSONDecodeError as e:
-                                        print(f'Error decoding JSON: {e}')
-                                    except KeyError as e:
-                                        print(f'Error accessing key: {e}')
-                                else:
-                                    print('Script tag with id="__NEXT_DATA__" not found')
+                                for participant in parsed_json["participants"]:
+                                    names.append(participant["name"])
                                 
+                                    summoner_name = names[-1]
+                                    opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
+                                    headers = {
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+                                        'Accept-Language': 'en-US,en;q=0.9',
+                                        'Accept-Encoding': 'gzip, deflate, br',
+                                        'Connection': 'keep-alive',
+                                        'Content-Type': 'application/json'
+                                    }
+                                    opgg_get_headers = headers
+                                    opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
+                                    soup = BeautifulSoup(opgg_search.content, 'html.parser')
+                                    script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
+                                    if script_tag:
+                                        script_content = script_tag.string
+                                        try:
+                                            json_data = json.loads(script_content)
+                                            summoner_id = json_data['props']['pageProps']['data']['summoner_id']
+                                            opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
+                                            opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
+                                            headers = {
+                                                'Accept': 'application/json, text/plain, */*',
+                                                'Accept-Encoding': 'gzip, deflate, br',
+                                                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,yes;q=0.6,zh-CN;q=0.5,zh;q=0.4',
+                                                'Cache-Control': 'no-cache',
+                                                'Content-Length': '0',
+                                                'Origin': 'https://www.op.gg',
+                                                'Pragma': 'no-cache',
+                                                'Referer': 'https://www.op.gg/',
+                                                'Sec-Ch-Ua': '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
+                                                'Sec-Ch-Ua-Mobile': '?0',
+                                                'Sec-Ch-Ua-Platform': '"Windows"',
+                                                'Sec-Fetch-Dest': 'empty',
+                                                'Sec-Fetch-Mode': 'cors',
+                                                'Sec-Fetch-Site': 'same-site',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+                                            }
+                                            opgg_post_headers = headers
+                                            response = requests.post(opgg_post, headers=opgg_post_headers)
+                                            response = requests.get(opgg_refresh, headers=opgg_get_headers)
+                                        except json.JSONDecodeError as e:
+                                            print(f'Error decoding JSON: {e}')
+                                        except KeyError as e:
+                                            print(f'Error accessing key: {e}')
+                                    else:
+                                        print('Script tag with id="__NEXT_DATA__" not found')
+                                    
                                 
                                 if len(names) == 5:
                                     opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
@@ -391,52 +434,55 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                     QDesktopServices.openUrl(deeplol_url)  
                                     search_performed = True
                             elif self.OPGG_check.isChecked():
-                                summoner_name = names[-1]
-                                opgg_get2 = f"https://www.op.gg/summoners/{region}/{summoner_name}"
-                                headers = {
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
-                                    'Accept-Language': 'en-US,en;q=0.9',
-                                    'Accept-Encoding': 'gzip, deflate, br',
-                                    'Connection': 'keep-alive',
-                                    'Content-Type': 'application/json'
-                                }
-                                opgg_get_headers2 = headers
-                                opgg_search2 = requests.get(opgg_get2, headers=opgg_get_headers2)
-                                soup = BeautifulSoup(opgg_search2.content, 'html.parser')
-                                script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
-                                if script_tag:
-                                    script_content = script_tag.string
-                                    try:
-                                        json_data = json.loads(script_content)
-                                        summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                        opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
-                                        opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
-                                        headers = {
-                                            'Accept': 'application/json, text/plain, */*',
-                                            'Accept-Encoding': 'gzip, deflate, br',
-                                            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,yes;q=0.6,zh-CN;q=0.5,zh;q=0.4',
-                                            'Cache-Control': 'no-cache',
-                                            'Content-Length': '0',
-                                            'Origin': 'https://www.op.gg',
-                                            'Pragma': 'no-cache',
-                                            'Referer': 'https://www.op.gg/',
-                                            'Sec-Ch-Ua': '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
-                                            'Sec-Ch-Ua-Mobile': '?0',
-                                            'Sec-Ch-Ua-Platform': '"Windows"',
-                                            'Sec-Fetch-Dest': 'empty',
-                                            'Sec-Fetch-Mode': 'cors',
-                                            'Sec-Fetch-Site': 'same-site',
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
-                                        }
-                                        opgg_post_headers = headers
-                                        response = requests.post(opgg_post, headers=opgg_post_headers)
-                                        response = requests.get(opgg_refresh, headers=opgg_get_headers2)
-                                    except json.JSONDecodeError as e:
-                                        print(f'Error decoding JSON: {e}')
-                                    except KeyError as e:
-                                        print(f'Error accessing key: {e}')
-                                else:
-                                    print('Script tag with id="__NEXT_DATA__" not found')
+                                for participant in parsed_json["participants"]:
+                                    names.append(participant["name"])
+                                
+                                    summoner_name = names[-1]
+                                    opgg_get2 = f"https://www.op.gg/summoners/{region}/{summoner_name}"
+                                    headers = {
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
+                                        'Accept-Language': 'en-US,en;q=0.9',
+                                        'Accept-Encoding': 'gzip, deflate, br',
+                                        'Connection': 'keep-alive',
+                                        'Content-Type': 'application/json'
+                                    }
+                                    opgg_get_headers2 = headers
+                                    opgg_search2 = requests.get(opgg_get2, headers=opgg_get_headers2)
+                                    soup = BeautifulSoup(opgg_search2.content, 'html.parser')
+                                    script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
+                                    if script_tag:
+                                        script_content = script_tag.string
+                                        try:
+                                            json_data = json.loads(script_content)
+                                            summoner_id = json_data['props']['pageProps']['data']['summoner_id']
+                                            opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
+                                            opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
+                                            headers = {
+                                                'Accept': 'application/json, text/plain, */*',
+                                                'Accept-Encoding': 'gzip, deflate, br',
+                                                'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,yes;q=0.6,zh-CN;q=0.5,zh;q=0.4',
+                                                'Cache-Control': 'no-cache',
+                                                'Content-Length': '0',
+                                                'Origin': 'https://www.op.gg',
+                                                'Pragma': 'no-cache',
+                                                'Referer': 'https://www.op.gg/',
+                                                'Sec-Ch-Ua': '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
+                                                'Sec-Ch-Ua-Mobile': '?0',
+                                                'Sec-Ch-Ua-Platform': '"Windows"',
+                                                'Sec-Fetch-Dest': 'empty',
+                                                'Sec-Fetch-Mode': 'cors',
+                                                'Sec-Fetch-Site': 'same-site',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+                                            }
+                                            opgg_post_headers = headers
+                                            response = requests.post(opgg_post, headers=opgg_post_headers)
+                                            response = requests.get(opgg_refresh, headers=opgg_get_headers2)
+                                        except json.JSONDecodeError as e:
+                                            print(f'Error decoding JSON: {e}')
+                                        except KeyError as e:
+                                            print(f'Error accessing key: {e}')
+                                    else:
+                                        print('Script tag with id="__NEXT_DATA__" not found')
                                 if len(names) == 5:
                                     opgg_url2 = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                     QDesktopServices.openUrl(opgg_url2)
@@ -449,10 +495,9 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                     search_performed = True
                     elif Status == "ReadyCheck":
                         search_performed = False
-                        if self.Auto_Ready.isChecked():
-                            if not ready:
-                                response = requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
-                                ready = True
+                        if self.Auto_Ready.isChecked() and not ready:
+                            response = requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
+                            ready = True
                     
                     else:
                         self.Nickname_label.setText("")
@@ -501,6 +546,7 @@ class DebugDialog(QtWidgets.QDialog):
                         region = "oce" if value.lower() == "oc1" else value
             riot_api = f'https://riot:{riot_token}@127.0.0.1:{riot_port}'
             client_api = f'https://riot:{client_token}@127.0.0.1:{client_port}'
+            print(riot_api + "\n" +client_api)
         else:
             pass
 
