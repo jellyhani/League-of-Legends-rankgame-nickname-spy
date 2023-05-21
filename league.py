@@ -2,10 +2,11 @@ from datetime import datetime
 import json
 import subprocess
 import time
+import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QUrl, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
-import sys
+from PyQt5.QtWidgets import QApplication
 from bs4 import BeautifulSoup
 
 import requests
@@ -73,6 +74,7 @@ class DodgeThread(QThread):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
+        self.power = True
     def run(self):
         client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.main_window.check_process_status()
         self.client_api = client_api
@@ -87,24 +89,19 @@ class DodgeThread(QThread):
         lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
 
-        while True and lobby_check_json == 'ChampSelect':
+        while self.power and lobby_check_json == 'ChampSelect':
             check = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
             check_json = json.loads(check.text)
             phase = check_json['timer']['phase']
             if phase == 'FINALIZATION' and zero_dodge:
-                current_time_ms = int(time.time() * 1000)
-                print(str(current_time_ms) + " 29.7초 후 닷지 전")
+                QApplication.processEvents()
                 QThread.msleep(29700)
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
                 body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
                 response = requests.post(dodge, data=body, verify=False)
-                current_time_ms2 = int(time.time() * 1000)
-                print(str(current_time_ms2) + " 29.7초 후 닷지명령어 전달 후")
-                new_time_ms = int(time.time() * 1000)
-                time_difference_ms = new_time_ms - current_time_ms
-                print(time_difference_ms)
                 print(response.text)
                 zero_dodge = False
+                self.power = False
                 break
             else:
                 if lobby_check_json != 'ChampSelect':
@@ -113,7 +110,9 @@ class DodgeThread(QThread):
                 # print(nowtimems)
                 # print("not found FINALIZATION" + "\n now phase " + phase)
                 pass
-        self.terminate()
+        self.quit()
+    def stop(self):
+        self.power = False
         self.quit()
 
 
@@ -312,7 +311,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.1  | 최신버전 : " + format(update_version_number)))
         self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -338,7 +337,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and lobby_check_json == 'ChampSelect':
             if self.dodge_check.isChecked():
-                self.dodgethread.dodge_signal.connect(self.dodgethread.start)
+                self.dodgethread.dodge_signal.connect(self.dodgethread.run)
                 self.dodgethread.start()
                 # while True and lobby_check_json == 'ChampSelect':
                 #     check = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
@@ -367,6 +366,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                 #         # print("not found FINALIZATION" + "\n now phase " + phase)
                 #         pass
             else:
+                self.dodgethread.stop()
                 self.dodgethread.terminate()
                 self.dodgethread.quit()
                 print("not zero-dodge checked")
