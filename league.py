@@ -74,7 +74,6 @@ class DodgeThread(QThread):
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
-        self.power = True
     def run(self):
         client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.main_window.check_process_status()
         self.client_api = client_api
@@ -85,6 +84,7 @@ class DodgeThread(QThread):
         self.client_port = client_port
         self.region = region
 
+        self.power = True
         zero_dodge = True
         lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
@@ -105,10 +105,8 @@ class DodgeThread(QThread):
                 break
             else:
                 if lobby_check_json != 'ChampSelect':
+                    self.power = True
                     break
-                # nowtimems = check_json['timer']['internalNowInEpochMs']
-                # print(nowtimems)
-                # print("not found FINALIZATION" + "\n now phase " + phase)
                 pass
         self.quit()
     def stop(self):
@@ -311,7 +309,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.1  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.2  | 최신버전 : " + format(update_version_number)))
         self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -339,35 +337,8 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             if self.dodge_check.isChecked():
                 self.dodgethread.dodge_signal.connect(self.dodgethread.run)
                 self.dodgethread.start()
-                # while True and lobby_check_json == 'ChampSelect':
-                #     check = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
-                #     check_json = json.loads(check.text)
-                #     phase = check_json['timer']['phase']
-                #     if phase == 'FINALIZATION' and zero_dodge:
-                #         current_time_ms = int(time.time() * 1000)
-                #         print(str(current_time_ms) + " 29.7초 후 닷지 전")
-                #         time.sleep(29.7)
-                #         dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
-                #         body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
-                #         response = requests.post(dodge, data=body, verify=False)
-                #         current_time_ms2 = int(time.time() * 1000)
-                #         print(str(current_time_ms2) + " 29.7초 후 닷지명령어 전달 후")
-                #         new_time_ms = int(time.time() * 1000)
-                #         time_difference_ms = new_time_ms - current_time_ms
-                #         print(time_difference_ms)
-                #         print(response.text)
-                #         zero_dodge = False
-                #         break
-                #     else:
-                #         if lobby_check_json != 'ChampSelect':
-                #             break
-                #         # nowtimems = check_json['timer']['internalNowInEpochMs']
-                #         # print(nowtimems)
-                #         # print("not found FINALIZATION" + "\n now phase " + phase)
-                #         pass
             else:
                 self.dodgethread.stop()
-                self.dodgethread.terminate()
                 self.dodgethread.quit()
                 print("not zero-dodge checked")
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
@@ -409,7 +380,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                 self.riot_api = f'https://riot:{self.riot_token}@127.0.0.1:{self.riot_port}'
                 self.client_api = f'https://riot:{self.client_token}@127.0.0.1:{self.client_port}'
             else:
-                # process is not running, reset values
                 self.riot_api = ""
                 self.client_api = ""
                 self.client_token = ""
@@ -477,7 +447,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                 messages_exist = False
                                 self.Messages_textedit.clear()
                         except KeyError:
-                            # If the "messages" key is not found, clear the text edit box
                             messages_exist = False
                             self.Messages_textedit.clear()
 
