@@ -9,7 +9,7 @@ lcu api 기반으로 작동합니다.<br>
 문의는 좌측 상단 issues 탭 or https://www.youtube.com/channel/UC0GkZ32n35grJA2eYzI-mrg 에서 해주세요<br>
 <br>
 # 기능
-현재 픽창 인원들의 닉네임 확인 <br>
+현재 픽창 인원들의 닉네임을 확인할 수 있습니다. <br>
 채팅 입력시 현재시간, 닉네임, 내용을 볼 수 있습니다. <br>
 OP.GG 또는 DEEPLOL 전적 자동 서치를 지원합니다. <br>
 게임 매칭중 자동 수락기능을 지원합니다. <br>
