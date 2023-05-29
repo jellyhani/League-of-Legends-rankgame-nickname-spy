@@ -6,7 +6,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QUrl, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMessageBox
 from bs4 import BeautifulSoup
 
 import requests
@@ -309,7 +309,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.2  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.3  | 최신버전 : " + format(update_version_number)))
         self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -337,6 +337,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             if self.dodge_check.isChecked():
                 self.dodgethread.dodge_signal.connect(self.dodgethread.run)
                 self.dodgethread.start()
+                QMessageBox.about(self,'0s dodge','게임시작 0.3초 전 닷지를 진행합니다.')
             else:
                 self.dodgethread.stop()
                 self.dodgethread.quit()
