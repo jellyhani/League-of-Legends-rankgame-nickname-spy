@@ -15,6 +15,7 @@ OP.GG 또는 DEEPLOL 전적 자동 서치를 지원합니다. <br>
 게임 매칭중 자동 수락기능을 지원합니다. <br>
 클라이언트를 끄지 않고 닷지가 가능합니다. <br>
 게임 시작 직전 0초에 닷지가 가능합니다. <br>
+클라이언트를 빠르게 재실행합니다<br>
 <br>
 [https://www.virustotal.com/gui/file/b9084b28acc51a89d70657695d38b047a96539676eaad01f905c8de9d8d5526d?nocache=1](https://www.virustotal.com/gui/file/554a515c421443a7739f1c21640b7303f49129539f21103ce11f034e8d12e472?nocache=1)<br>
 ![league](https://user-images.githubusercontent.com/62514874/224506726-24066b6d-ea3c-4bc2-9c33-df4e8f32130e.PNG)<br>
