@@ -6,7 +6,7 @@ import sys
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QUrl, QTimer, QThread, pyqtSignal
 from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtWidgets import QApplication, QMessageBox, QPushButton
 from bs4 import BeautifulSoup
 
 import requests
@@ -131,11 +131,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
 
         #proc search
         self.proc_search = QTimer()
+        self.proc_search.setInterval(1000)
         self.proc_search.timeout.connect(self.check_process_status)
         self.proc_search.start(5000)
 
         #status
         self.statusTimer = QTimer(self)
+        self.statusTimer.setInterval(1000)
         self.statusTimer.timeout.connect(self.update_status)
         self.statusTimer.start(1000)
 
@@ -208,6 +210,9 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.DeepLOL_check.setObjectName("DeepLOL_check")
         self.verticalLayout_4.addWidget(self.DeepLOL_check)
         self.verticalLayout_5.addLayout(self.verticalLayout_4)
+        self.Fow_check = QtWidgets.QCheckBox(League_Multisearch)
+        self.Fow_check.setObjectName("Fow_check")
+        self.verticalLayout_4.addWidget(self.Fow_check)
         self.label_4 = QtWidgets.QLabel(League_Multisearch)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -240,14 +245,12 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Update_version_label.setObjectName("Update_version_label")
         
         self.horizontalLayout_2.addWidget(self.Update_version_label)
-        self.Debug_btn = QtWidgets.QPushButton(League_Multisearch)
+        self.Restart = QtWidgets.QPushButton(League_Multisearch)
+        self.Restart.setObjectName("Restart")
+        self.horizontalLayout_2.addWidget(self.Restart)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.Debug_btn.sizePolicy().hasHeightForWidth())
-        self.Debug_btn.setSizePolicy(sizePolicy)
-        self.Debug_btn.setObjectName("Debug_btn")
-        self.horizontalLayout_2.addWidget(self.Debug_btn)
         self.Dodge = QtWidgets.QPushButton(League_Multisearch)
         self.Dodge.setObjectName("Dodge")
         self.horizontalLayout_2.addWidget(self.Dodge)
@@ -286,6 +289,16 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.retranslateUi(League_Multisearch)
         QtCore.QMetaObject.connectSlotsByName(League_Multisearch)
 
+        self.checkboxes = {
+            "DeepLOL_check": self.DeepLOL_check,
+            "OPGG_check": self.OPGG_check,
+            "Fow_check": self.Fow_check
+            # 다른 체크박스들 추가
+        }
+
+
+        
+
     
     def Auto_Ready_Changed(self):
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
@@ -305,18 +318,34 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Auto_Ready.setText(_translate("League_Multisearch", "Auto Ready"))
         self.OPGG_check.setText(_translate("League_Multisearch", "OP.GG"))
         self.DeepLOL_check.setText(_translate("League_Multisearch", "DeepLOL"))
+        self.Fow_check.setText(_translate("League_Multisearch", "Fow"))
         update_url = "https://raw.githubusercontent.com/jellyhani/League-of-Legends-rankgame-nickname-spy/main/version.txt"
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.3  | 최신버전 : " + format(update_version_number)))
-        self.Debug_btn.setText(_translate("League_Multisearch", "Debug"))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.5  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
+        self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
-        
+        self.Restart.clicked.connect(self.Restart_action)
         self.Github_btn.clicked.connect(self.open_github)
-        self.Debug_btn.clicked.connect(self.open_debug)
         self.Dodge.clicked.connect(self.dodge)
+
+    def Restart_action(self):
+        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
+        self.client_api = client_api
+        self.client_token = client_token
+        self.riot_api = riot_api
+        self.riot_port = riot_port
+        self.riot_token = riot_token
+        self.client_port = client_port
+        self.region = region
+
+        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
+        if process_name in output:
+            requests.post(riot_api + '/riotclient/kill-and-restart-ux', verify=False)
+        else:
+            QMessageBox.about(self,'error','Client not found')
 
     def dodge(self):
         client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
@@ -345,8 +374,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
                 body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
                 response = requests.post(dodge, data=body, verify=False)
-                print(response)
-                   
+                print(response)     
         else:
             print("not found " + process_name + " or ChampSelect")
             pass
@@ -355,9 +383,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         url = QUrl("https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy")
         QDesktopServices.openUrl(url)
 
-    def open_debug(self):
-        DebugDialog(self).show()
-        
     def check_process_status(self):
         try:
             # check if process is running
@@ -411,13 +436,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             self.riot_token = riot_token
             self.client_port = client_port
             self.region = region
-
+            
+            
             summoner_name = ""
 
             output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
                 try:
-                    ready = False
                     chatlog_url = client_api + '/chat/v5/messages/champ-select'
                     chatlog_response = requests.get(chatlog_url, verify=False)
                     chatlog = json.loads(chatlog_response.text)
@@ -462,68 +487,45 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                         else:
                             self.Nickname_label.setText("")
                         if not search_performed:
-                            if self.DeepLOL_check.isChecked() and self.OPGG_check.isChecked():
-                                for i in range(5):
-                                    summoner_name = names[i]
-                                    opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
-                                    opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
-                                    opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
-                                    soup = BeautifulSoup(opgg_search.content, 'html.parser')
-                                    script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
-                                    if script_tag:
-                                        script_content = script_tag.string
-                                        try:
-                                            json_data = json.loads(script_content)
-                                            summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                            opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
-                                            opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
-                                            response = requests.post(opgg_post, headers=opgg_post_headers)
-                                            response = requests.get(opgg_refresh, headers=opgg_get_headers)
-                                        except json.JSONDecodeError as e:
-                                            print(f'Error decoding JSON: {e}')
-                                        except KeyError as e:
-                                            print(f'Error accessing key: {e}')
-                                    else:
-                                        print('Script tag with id="__NEXT_DATA__" not found')
-
-                                if len(names) == 5:
-                                    opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
-                                    deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
-                                    QDesktopServices.openUrl(opgg_url)
-                                    QDesktopServices.openUrl(deeplol_url)  
-                                    search_performed = True
-                            elif self.OPGG_check.isChecked():
-                                for i in range(5):
-                                    summoner_name = names[i]
-                                    opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
-                                    opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
-                                    opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
-                                    soup = BeautifulSoup(opgg_search.content, 'html.parser')
-                                    script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
-                                    if script_tag:
-                                        script_content = script_tag.string
-                                        try:
-                                            json_data = json.loads(script_content)
-                                            summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                            opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
-                                            opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
-                                            response = requests.post(opgg_post, headers=opgg_post_headers)
-                                            response = requests.get(opgg_refresh, headers=opgg_get_headers)
-                                        except json.JSONDecodeError as e:
-                                            print(f'Error decoding JSON: {e}')
-                                        except KeyError as e:
-                                            print(f'Error accessing key: {e}')
-                                    else:
-                                        print('Script tag with id="__NEXT_DATA__" not found')
-                                if len(names) == 5:
-                                    opgg_url2 = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
-                                    QDesktopServices.openUrl(opgg_url2)
-                                    search_performed = True
-                            elif self.DeepLOL_check.isChecked():
-                                if len(names) == 5:
-                                    deeplol_url2 = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
-                                    QDesktopServices.openUrl(deeplol_url2)
-                                    search_performed = True
+                            for checkbox_name, checkbox in self.checkboxes.items():
+                                if checkbox.isChecked():
+                                    if checkbox_name == "DeepLOL_check":
+                                        if len(names) == 5:
+                                            deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
+                                            QDesktopServices.openUrl(deeplol_url)
+                                            search_performed = True
+                                    elif checkbox_name == "OPGG_check":
+                                        for i in range(5):
+                                            summoner_name = names[i]
+                                            opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
+                                            opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
+                                            opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
+                                            soup = BeautifulSoup(opgg_search.content, 'html.parser')
+                                            script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
+                                            if script_tag:
+                                                script_content = script_tag.string
+                                                try:
+                                                    json_data = json.loads(script_content)
+                                                    summoner_id = json_data['props']['pageProps']['data']['summoner_id']
+                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
+                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
+                                                    response = requests.post(opgg_post, headers=opgg_post_headers)
+                                                    response = requests.get(opgg_refresh, headers=opgg_get_headers)
+                                                except json.JSONDecodeError as e:
+                                                    print(f'Error decoding JSON: {e}')
+                                                except KeyError as e:
+                                                    print(f'Error accessing key: {e}')
+                                            else:
+                                                print('Script tag with id="__NEXT_DATA__" not found')
+                                        if len(names) == 5:
+                                            opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
+                                            QDesktopServices.openUrl(opgg_url)
+                                            search_performed = True
+                                    elif checkbox_name == "Fow_check":
+                                        if len(names) == 5:
+                                            Fow_url = QUrl(f"https://fow.kr/multi#"+ urllib.parse.quote(",".join(names)))
+                                            QDesktopServices.openUrl(Fow_url)
+                                            search_performed = True
                     
                     else:
                         self.Nickname_label.setText("")
@@ -545,57 +547,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                 messages_exist = False
                 search_performed = False
                 self.Messages_textedit.clear()
-
-class DebugDialog(QtWidgets.QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Debug")
-        self.layout = QtWidgets.QVBoxLayout(self)
-
-        process_name = 'LeagueClientUx.exe'
-        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
-        if process_name in output:
-            command = f'wmic PROCESS WHERE name=\'{process_name}\' GET commandline'
-            output = subprocess.check_output(command, shell=True).decode('utf-8')
-            tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port=", "--region="]
-            for token in tokens:
-                    value = output.split(token)[1].split()[0].strip('"')
-                    if token == "--riotclient-app-port=":
-                        client_port = value
-                    if token == "--riotclient-auth-token=":
-                        client_token = value
-                    if token == "--app-port=":
-                        riot_port = value
-                    if token == "--remoting-auth-token=":
-                        riot_token = value
-                    if token == "--region=":
-                        region = "oce" if value.lower() == "oc1" else value
-            riot_api = f'https://riot:{riot_token}@127.0.0.1:{riot_port}'
-            client_api = f'https://riot:{client_token}@127.0.0.1:{client_port}'
-            print(riot_api + "\n" +client_api)
-        else:
-            pass
-
-        if process_name in output:
-            riot_token_label = QtWidgets.QLabel(f"Riot_token: {riot_token}")
-            self.layout.addWidget(riot_token_label)
-
-            riot_port_label = QtWidgets.QLabel(f"Riot_port: {riot_port}")
-            self.layout.addWidget(riot_port_label)
-
-            client_token_label = QtWidgets.QLabel(f"Client_token: {client_token}")
-            self.layout.addWidget(client_token_label)
-
-            client_port_label = QtWidgets.QLabel(f"Client_port: {client_port}")
-            self.layout.addWidget(client_port_label)
-
-            region_label = QtWidgets.QLabel(f"Region: {region}")
-            self.layout.addWidget(region_label)
-
-        else:
-            not_found_label = QtWidgets.QLabel("LeagueClientUx.exe process not found.")
-            self.layout.addWidget(not_found_label)
-        self.exec_()
         
 
 if __name__ == "__main__":
