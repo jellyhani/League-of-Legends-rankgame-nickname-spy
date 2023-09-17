@@ -18,6 +18,19 @@ OP.GG 또는 FOW.KR, DEEPLOL 전적 자동 서치를 지원합니다. <br>
 클라이언트를 끄지 않고 닷지가 가능합니다. <br>
 게임 시작 직전 0초에 닷지가 가능합니다. <br>
 클라이언트를 빠르게 재실행합니다<br>
+
+# 실행
+파이썬이 설치 되어 있으셔야 합니다.
+코드를 직접 실행하시기 위해서는 [여기](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/archive/refs/heads/main.zip)를 눌러 다운로드 하시거나 프로젝트를 복사하세요.<br>
+압축된 파일을 풀고 원하는 디렉토리에 푸시고 legui.py 를 편집기로 실행하세요<br>
+저는 visual studio code 를 이용합니다.<br>
+F5 를 눌러 디버깅모드로 한번 실행하세요<br>
+아래 명령어를 입력하여 필요한 패키지를 설치하세요<br>
+```python
+pip install -r requirements.txt
+```
+이후 다시 f5 를 누르시면 실행되실겁니다.<br>
+
 <br>
 [https://www.virustotal.com/gui/file/b9084b28acc51a89d70657695d38b047a96539676eaad01f905c8de9d8d5526d?nocache=1](https://www.virustotal.com/gui/file/554a515c421443a7739f1c21640b7303f49129539f21103ce11f034e8d12e472?nocache=1)<br>
 ![league](https://user-images.githubusercontent.com/62514874/224506726-24066b6d-ea3c-4bc2-9c33-df4e8f32130e.PNG)<br>
