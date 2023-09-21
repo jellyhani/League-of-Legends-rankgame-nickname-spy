@@ -20,7 +20,7 @@ OP.GG 또는 FOW.KR, DEEPLOL 전적 자동 서치를 지원합니다. <br>
 # 실행
 파이썬이 설치 되어 있으셔야 합니다.
 코드를 직접 실행하시기 위해서는 [여기](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/archive/refs/heads/main.zip)를 눌러 다운로드 하시거나 프로젝트를 복사하세요.<br>
-압축된 파일을 풀고 원하는 디렉토리에 푸시고 legui.py 를 편집기로 실행하세요<br>
+압축된 파일을 풀고 원하는 디렉토리에 푸시고 league.py 를 편집기로 실행하세요<br>
 저는 visual studio code 를 이용합니다.<br>
 F5 를 눌러 디버깅모드로 한번 실행하세요<br>
 아래 명령어를 입력하여 필요한 패키지를 설치하세요<br>
