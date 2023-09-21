@@ -1,7 +1,5 @@
 # league-of-legends-rank-name-spy
 다운로드 -> https://github.com/jellyhani/league-of-legends-rank-name-spy/releases <br>
-0초 닷지는 체크박스 체크 후 게임시작준비 단계 즉 모두가 픽한 후 30초가 되기 전에 닷지버튼을 눌러주셔야 정상작동합니다<br>
-칼바람에서는 적용 안됩니다<br>
 exe 파일만 받으면 됩니다 <br>
 리그오브레전드 랭크게임 멀티서치(opgg)<br>
 프로그램 실행시 자동으로 롤 클라이언트 프로세스를 검색합니다<br>
