@@ -29,7 +29,7 @@ F5 를 눌러 디버깅모드로 한번 실행하세요<br>
 ```python
 pip install -r requirements.txt
 ```
-이후 다시 f5 를 누르시면 실행되실겁니다.<br>
+이후 다시 f5 를 누르시면 실행되실겁니다.<br><br>
 
 <br>
 [https://www.virustotal.com/gui/file/b9084b28acc51a89d70657695d38b047a96539676eaad01f905c8de9d8d5526d?nocache=1](https://www.virustotal.com/gui/file/554a515c421443a7739f1c21640b7303f49129539f21103ce11f034e8d12e472?nocache=1)<br>
