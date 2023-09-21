@@ -31,8 +31,8 @@ pip install -r requirements.txt
 ```
 이후 다시 f5 를 누르시면 실행되실겁니다.<br><br>
 
-<br>
-[https://www.virustotal.com/gui/file/b9084b28acc51a89d70657695d38b047a96539676eaad01f905c8de9d8d5526d?nocache=1](https://www.virustotal.com/gui/file/554a515c421443a7739f1c21640b7303f49129539f21103ce11f034e8d12e472?nocache=1)<br>
+<br><br>
+[https://www.virustotal.com/gui/file/658ea4089f86b67b21f265703fb984b55be238b88067a6e0ad6f97e2747f3414?nocache=1](https://www.virustotal.com/gui/file/658ea4089f86b67b21f265703fb984b55be238b88067a6e0ad6f97e2747f3414?nocache=1)<br><br>
 ![league](https://user-images.githubusercontent.com/62514874/224506726-24066b6d-ea3c-4bc2-9c33-df4e8f32130e.PNG)<br>
 
 
