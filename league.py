@@ -95,7 +95,19 @@ class DodgeThread(QThread):
             phase = check_json['timer']['phase']
             if phase == 'FINALIZATION' and zero_dodge:
                 QApplication.processEvents()
-                QThread.msleep(29700)
+                self.checker = self.riot_api + "/lol-champ-select/v1/session/my-selection"
+                data = {
+                    "spell1Id": 13,
+                    "spell2Id": 4
+                }
+                response = requests.patch(self.checker, json=data, verify=False)
+                r = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
+                jsondata = json.loads(r.text)
+                remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
+                remaining_time_ms -= 300
+                remaining_time_ms -= (remaining_time_ms % 50)
+                print(remaining_time_ms)
+                QThread.msleep(remaining_time_ms)
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
                 body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
                 response = requests.post(dodge, data=body, verify=False)
@@ -115,7 +127,7 @@ class DodgeThread(QThread):
 
 
 class Ui_League_Multisearch(QtWidgets.QDialog):
-    def setupUi(self, League_Multisearch):
+    def setupUi(self, League_Multisearch):        
         #proc search
         self.process_name = "LeagueClientUx.exe"
         self.riot_api = ""
@@ -293,13 +305,12 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             "DeepLOL_check": self.DeepLOL_check,
             "OPGG_check": self.OPGG_check,
             "Fow_check": self.Fow_check
-            # 다른 체크박스들 추가
         }
-
 
         
 
-    
+
+        
     def Auto_Ready_Changed(self):
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and self.Auto_Ready.isChecked():
@@ -323,7 +334,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.5  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.6  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -436,8 +447,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             self.riot_token = riot_token
             self.client_port = client_port
             self.region = region
-            
-            
+
             summoner_name = ""
 
             output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
