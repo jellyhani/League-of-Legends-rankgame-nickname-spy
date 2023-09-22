@@ -105,7 +105,6 @@ class DodgeThread(QThread):
                 jsondata = json.loads(r.text)
                 remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
                 remaining_time_ms -= 300
-                remaining_time_ms -= (remaining_time_ms % 50)
                 print(remaining_time_ms)
                 QThread.msleep(remaining_time_ms)
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
