@@ -97,14 +97,15 @@ class DodgeThread(QThread):
                 QApplication.processEvents()
                 self.checker = self.riot_api + "/lol-champ-select/v1/session/my-selection"
                 data = {
-                    "spell1Id": 13,
-                    "spell2Id": 4
+                    "spell1Id": 1,
+                    "spell2Id": 3
                 }
                 response = requests.patch(self.checker, json=data, verify=False)
                 r = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
                 jsondata = json.loads(r.text)
                 remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
                 remaining_time_ms -= 300
+                remaining_time_ms -= (remaining_time_ms % 50)
                 print(remaining_time_ms)
                 QThread.msleep(remaining_time_ms)
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
@@ -333,7 +334,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.6  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.7  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
