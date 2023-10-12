@@ -101,19 +101,11 @@ class DodgeThread(QThread):
                 self.spell_1Id = response.get("spell1Id")
                 self.spell_2Id = response.get("spell2Id")
                 print(self.spell_1Id, self.spell_2Id)
-                data = {
-                    "spell1Id": 1,
-                    "spell2Id": 3
-                }
-                response1 = requests.patch(self.checker, json=data, verify=False)
-                QThread.msleep(50)
                 recovery_spell  = {
-                    "spell1Id": self.spell_1Id,
-                    "spell2Id": self.spell_2Id
+                    "spell1Id": self.spell_2Id,
+                    "spell2Id": self.spell_1Id
                 }
-                print(recovery_spell)
-                response2 = requests.patch(self.checker, json=recovery_spell, verify=False)
-                response2.raise_for_status()
+                response = requests.patch(self.checker, json=recovery_spell, verify=False)
                 r = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
                 jsondata = json.loads(r.text)
                 remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
@@ -347,7 +339,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.8.9  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.9  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
