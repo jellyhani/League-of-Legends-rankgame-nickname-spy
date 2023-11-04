@@ -41,7 +41,7 @@ restart -> 롤 클라이언트를 재시작합니다 (의미 없습니다. 테�
 dodge -> 닷지를 진행합니다. 0초닷지를 원하실경우 체크박스 체크 후 눌러주세요 <br>
 Github -> 최신버전 업데이트 시 필요할 경우 다운 받으시면 됩니다 <br>
 
-# 실행
+# 디버깅
 파이썬이 설치 되어 있으셔야 합니다.
 코드를 직접 실행하시기 위해서는 [여기](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/archive/refs/heads/main.zip)를 눌러 다운로드 하시거나 프로젝트를 복사하세요.<br>
 압축된 파일을 풀고 원하는 디렉토리에 푸시고 league.py 를 편집기로 실행하세요<br>
