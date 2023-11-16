@@ -9,6 +9,7 @@ from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QApplication, QMessageBox, QPushButton
 from bs4 import BeautifulSoup
 
+import pyperclip
 import requests
 import urllib3
 import urllib
@@ -68,6 +69,7 @@ class AutoReadyThread(QThread):
             Status = Status_url_response
             if Status == "ReadyCheck":
                 requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
+                QThread.msleep(100)
 
 class DodgeThread(QThread):
     dodge_signal = pyqtSignal()
@@ -109,7 +111,7 @@ class DodgeThread(QThread):
                 r = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
                 jsondata = json.loads(r.text)
                 remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
-                remaining_time_ms -= 300
+                remaining_time_ms -= 400
                 print(remaining_time_ms)
                 QThread.msleep(remaining_time_ms)
                 dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
@@ -339,7 +341,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 1.9  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.0  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -405,7 +407,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             output = subprocess.check_output(f'tasklist /fi "imagename eq {self.process_name}"', shell=True).decode('iso-8859-1')
             if self.process_name in output:
                 command = f'wmic PROCESS WHERE name=\'{self.process_name}\' GET commandline'
-                output = subprocess.check_output(command, shell=True).decode('utf-8')
+                output = subprocess.check_output(command, shell=True).decode('iso-8859-1')
                 tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port=", "--region="]
                 for token in tokens:
                     value = output.split(token)[1].split()[0].strip('"')
@@ -421,6 +423,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                         self.region = "oce" if value.lower() == "oc1" else value
                 self.riot_api = f'https://riot:{self.riot_token}@127.0.0.1:{self.riot_port}'
                 self.client_api = f'https://riot:{self.client_token}@127.0.0.1:{self.client_port}'
+                
             else:
                 self.riot_api = ""
                 self.client_api = ""
@@ -509,7 +512,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                             QDesktopServices.openUrl(deeplol_url)
                                             search_performed = True
                                     elif checkbox_name == "OPGG_check":
-                                        for i in range(5):
+                                        for i in range(len(names)):
                                             summoner_name = names[i]
                                             opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
                                             opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
@@ -549,7 +552,9 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                         
                 except Exception as e:
                     print(f"Error: {e}")
-                    self.status.setText("Status: Error")
+                    self.status.setText(f"Status: {e}")
+                    error_message = str(e)
+                    pyperclip.copy(error_message)
                     self.Nickname_label.setText("")
                     messages_exist = False
                     search_performed = False
