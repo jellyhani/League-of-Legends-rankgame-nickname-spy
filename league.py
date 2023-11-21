@@ -50,11 +50,20 @@ search_performed = False
 
 class AutoReadyThread(QThread):
     autoready = pyqtSignal(bool, str, str, str, str, str, str)
-    def __init__(self, main_window):
+    def __init__(self, main_window, proc_search_thread):
         super().__init__()
         self.main_window = main_window
+        self.proc_search_thread = proc_search_thread
+        self.proc_search_thread.process_info_updated.connect(self.process_info_updated)
     def run(self):
-        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.main_window.check_process_status()
+        while True:
+            Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+            Status_url_response = json.loads(Status_url.text)
+            Status = Status_url_response
+            if Status == "ReadyCheck":
+                requests.post(self.riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
+                QThread.msleep(100)
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
         self.client_api = client_api
         self.client_token = client_token
         self.riot_api = riot_api
@@ -63,36 +72,22 @@ class AutoReadyThread(QThread):
         self.client_port = client_port
         self.region = region
         
-        while True:
-            Status_url = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
-            Status_url_response = json.loads(Status_url.text)
-            Status = Status_url_response
-            if Status == "ReadyCheck":
-                requests.post(riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
-                QThread.msleep(100)
-
 class DodgeThread(QThread):
     dodge_signal = pyqtSignal()
-    def __init__(self, main_window):
+    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    def __init__(self, main_window, proc_search_thread):
         super().__init__()
         self.main_window = main_window
+        self.proc_search_thread = proc_search_thread
+        self.proc_search_thread.process_info_updated.connect(self.process_info_updated)
     def run(self):
-        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.main_window.check_process_status()
-        self.client_api = client_api
-        self.client_token = client_token
-        self.riot_api = riot_api
-        self.riot_port = riot_port
-        self.riot_token = riot_token
-        self.client_port = client_port
-        self.region = region
-
         self.power = True
         zero_dodge = True
-        lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+        lobby_check = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
 
         while self.power and lobby_check_json == 'ChampSelect':
-            check = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
+            check = requests.get(self.riot_api + '/lol-champ-select/v1/session', verify=False)
             check_json = json.loads(check.text)
             phase = check_json['timer']['phase']
             
@@ -108,13 +103,13 @@ class DodgeThread(QThread):
                     "spell2Id": self.spell_1Id
                 }
                 response = requests.patch(self.checker, json=recovery_spell, verify=False)
-                r = requests.get(riot_api + '/lol-champ-select/v1/session', verify=False)
+                r = requests.get(self.riot_api + '/lol-champ-select/v1/session', verify=False)
                 jsondata = json.loads(r.text)
                 remaining_time_ms = jsondata["timer"]["adjustedTimeLeftInPhase"]
                 remaining_time_ms -= 400
                 print(remaining_time_ms)
                 QThread.msleep(remaining_time_ms)
-                dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
+                dodge = self.riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
                 body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
                 response = requests.post(dodge, data=body, verify=False)
                 print(response.text)
@@ -130,7 +125,124 @@ class DodgeThread(QThread):
     def stop(self):
         self.power = False
         self.quit()
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+        self.client_api = client_api
+        self.client_token = client_token
+        self.riot_api = riot_api
+        self.riot_port = riot_port
+        self.riot_token = riot_token
+        self.client_port = client_port
+        self.region = region
 
+class statusThread(QThread):
+    status_updated = pyqtSignal(str)
+    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    def __init__(self, main_window, proc_search_thread):
+        super(statusThread, self).__init__()
+        self.main_window = main_window
+        self.proc_search_thread = proc_search_thread
+        self.proc_search_thread.process_info_updated.connect(self.process_info_updated)
+        
+    def run(self):
+        while True:
+            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
+            if process_name in output:
+                try:
+                    Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+                    Status_url_response = json.loads(Status_url.text)
+                    Status = Status_url_response
+                    self.status_updated.emit(Status)
+                    QThread.msleep(100)
+                    
+                except Exception as e:
+                    print(f"Error: {e}")
+                    self.status_updated.emit(f"Status: {e}")
+                    error_message = str(e)
+                    pyperclip.copy(error_message)
+                except requests.exceptions.RequestException as e:
+                    print(f"An error occurred during the request: {e}")
+                    self.status_updated.emit(f"Status: {e}")
+                    error_message = str(e)
+                    pyperclip.copy(error_message)
+            else:
+                    self.status_updated.emit("Not Connected")
+        self.msleep(100)
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+        self.client_api = client_api
+        self.client_token = client_token
+        self.riot_api = riot_api
+        self.riot_port = riot_port
+        self.riot_token = riot_token
+        self.client_port = client_port
+        self.region = region
+
+class proc_searchThread(QThread):
+    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.client_api = ""
+        self.client_token = ""
+        self.riot_api = ""
+        self.riot_port = ""
+        self.riot_token = ""
+        self.client_port = ""
+        self.region = ""
+        self.process_name = 'LeagueClientUx.exe'
+    def run(self):
+        while True:
+            try:
+                output = subprocess.check_output(f'tasklist /fi "imagename eq {self.process_name}"', shell=True).decode('iso-8859-1')
+                if self.process_name in output:
+                    command = f'wmic PROCESS WHERE name=\'{self.process_name}\' GET commandline'
+                    output = subprocess.check_output(command, shell=True).decode('iso-8859-1')
+                    tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port=", "--region="]
+                    for token in tokens:
+                        value = output.split(token)[1].split()[0].strip('"')
+                        if token == "--riotclient-app-port=":
+                            self.client_port = value
+                        if token == "--riotclient-auth-token=":
+                            self.client_token = value
+                        if token == "--app-port=":
+                            self.riot_port = value
+                        if token == "--remoting-auth-token=":
+                            self.riot_token = value
+                        if token == "--region=":
+                            self.region = "oce" if value.lower() == "oc1" else value
+                    self.riot_api = f'https://riot:{self.riot_token}@127.0.0.1:{self.riot_port}'
+                    self.client_api = f'https://riot:{self.client_token}@127.0.0.1:{self.client_port}'
+                    self.process_info_updated.emit(
+                        self.client_api, self.client_token,
+                        self.riot_api, self.riot_port,
+                        self.riot_token, self.client_port,
+                        self.region
+                    )
+
+                else:
+                    self.riot_api = ""
+                    self.client_api = ""
+                    self.client_token = ""
+                    self.client_port = ""
+                    self.riot_token = ""
+                    self.riot_port = ""
+                    self.region = ""
+                    self.process_info_updated.emit("", "", "", "", "", "", "")
+            except Exception as e:
+                print(f"Error: {e}")
+                error_message = str(e)
+                pyperclip.copy(error_message)
+                self.riot_api = ""
+                self.client_api = ""
+                self.client_token = ""
+                self.client_port = ""
+                self.riot_token = ""
+                self.riot_port = ""
+                self.region = ""
+                self.process_info_updated.emit("", "", "", "", "", "", "")
+
+        self.msleep(100)
+        return self.client_api, self.client_token, self.riot_api, self.riot_port, self. riot_token, self.client_port,self.region
+            
 
 class Ui_League_Multisearch(QtWidgets.QDialog):
     def setupUi(self, League_Multisearch):        
@@ -144,22 +256,12 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.riot_port = ""
         self.region = ""
 
-        self.autoreadythread = AutoReadyThread(self)
-        self.dodgethread = DodgeThread(self)
-
-        #proc search
-        self.proc_search = QTimer()
-        self.proc_search.setInterval(1000)
-        self.proc_search.timeout.connect(self.check_process_status)
-        self.proc_search.start(5000)
-
         #status
         self.statusTimer = QTimer(self)
         self.statusTimer.setInterval(1000)
         self.statusTimer.timeout.connect(self.update_status)
         self.statusTimer.start(1000)
 
-        
         League_Multisearch.setObjectName("League_Multisearch")
         League_Multisearch.resize(506, 452)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -302,7 +404,17 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Messages_textedit.setReadOnly(True)
         self.Messages_textedit.setObjectName("Messages_textedit")
         self.verticalLayout_3.addWidget(self.Messages_textedit)
-        
+
+        self.proc_searchThread = proc_searchThread(self)
+        self.proc_search_thread = proc_searchThread(self)
+        self.status_thread = statusThread(self, self.proc_search_thread)
+        self.status_thread.status_updated.connect(self.update_status_label)
+        self.status_thread.start()
+        self.proc_search_thread.process_info_updated.connect(self.update_process_info)
+        self.proc_search_thread.start()
+        self.autoreadythread = AutoReadyThread(self, self.proc_search_thread)
+        self.dodgethread = DodgeThread(self, self.proc_search_thread)
+
         self.Auto_Ready.stateChanged.connect(self.Auto_Ready_Changed)
 
         self.checkboxes = {
@@ -314,10 +426,18 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         QtCore.QMetaObject.connectSlotsByName(League_Multisearch)
 
 
-        
+    def update_status_label(self, status):
+        self.status.setText(f"Status: {status}")
 
+    def update_process_info(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+        self.client_api = client_api
+        self.client_token = client_token
+        self.riot_api = riot_api
+        self.riot_port = riot_port
+        self.riot_token = riot_token
+        self.client_port = client_port
+        self.region = region    
 
-        
     def Auto_Ready_Changed(self):
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and self.Auto_Ready.isChecked():
@@ -341,7 +461,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.0  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.1  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -350,35 +470,16 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Dodge.clicked.connect(self.dodge)
 
     def Restart_action(self):
-        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
-        self.client_api = client_api
-        self.client_token = client_token
-        self.riot_api = riot_api
-        self.riot_port = riot_port
-        self.riot_token = riot_token
-        self.client_port = client_port
-        self.region = region
-
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output:
-            requests.post(riot_api + '/riotclient/kill-and-restart-ux', verify=False)
+            requests.post(self.riot_api + '/riotclient/kill-and-restart-ux', verify=False)
         else:
             QMessageBox.about(self,'error','Client not found')
 
     def dodge(self):
-        client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
-        self.client_api = client_api
-        self.client_token = client_token
-        self.riot_api = riot_api
-        self.riot_port = riot_port
-        self.riot_token = riot_token
-        self.client_port = client_port
-        self.region = region
-
-        lobby_check = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+        lobby_check = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
 
-        
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and lobby_check_json == 'ChampSelect':
             if self.dodge_check.isChecked():
@@ -389,7 +490,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                 self.dodgethread.stop()
                 self.dodgethread.quit()
                 print("not zero-dodge checked")
-                dodge = riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
+                dodge = self.riot_api + '/lol-login/v1/session/invoke?destination=lcdsServiceProxy&method=call&args=[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]'
                 body = "[\"\",\"teambuilder-draft\",\"quitV2\",\"\"]"
                 response = requests.post(dodge, data=body, verify=False)
                 print(response)     
@@ -401,77 +502,23 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         url = QUrl("https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy")
         QDesktopServices.openUrl(url)
 
-    def check_process_status(self):
-        try:
-            # check if process is running
-            output = subprocess.check_output(f'tasklist /fi "imagename eq {self.process_name}"', shell=True).decode('iso-8859-1')
-            if self.process_name in output:
-                command = f'wmic PROCESS WHERE name=\'{self.process_name}\' GET commandline'
-                output = subprocess.check_output(command, shell=True).decode('iso-8859-1')
-                tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port=", "--region="]
-                for token in tokens:
-                    value = output.split(token)[1].split()[0].strip('"')
-                    if token == "--riotclient-app-port=":
-                        self.client_port = value
-                    if token == "--riotclient-auth-token=":
-                        self.client_token = value
-                    if token == "--app-port=":
-                        self.riot_port = value
-                    if token == "--remoting-auth-token=":
-                        self.riot_token = value
-                    if token == "--region=":
-                        self.region = "oce" if value.lower() == "oc1" else value
-                self.riot_api = f'https://riot:{self.riot_token}@127.0.0.1:{self.riot_port}'
-                self.client_api = f'https://riot:{self.client_token}@127.0.0.1:{self.client_port}'
-                
-            else:
-                self.riot_api = ""
-                self.client_api = ""
-                self.client_token = ""
-                self.client_port = ""
-                self.riot_token = ""
-                self.riot_port = ""
-                self.region = ""
-        except Exception as e:
-            print(f"Error: {e}")
-            self.riot_api = ""
-            self.client_api = ""
-            self.client_token = ""
-            self.client_port = ""
-            self.riot_token = ""
-            self.riot_port = ""
-            self.region = ""
-
-        return self.client_api, self.client_token, self.riot_api, self.riot_port, self. riot_token, self.client_port,self.region
-    
     def update_status(self):
             global last_printed_time, messages_exist, search_performed
             
-            client_api, client_token, riot_api, riot_port, riot_token, client_port, region = self.check_process_status()
-            self.client_api = client_api
-            self.client_token = client_token
-            self.riot_api = riot_api
-            self.riot_port = riot_port
-            self.riot_token = riot_token
-            self.client_port = client_port
-            self.region = region
-
             summoner_name = ""
             output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
                 try:
-                    chatlog_url = client_api + '/chat/v5/messages/champ-select'
+                    chatlog_url = self.client_api + '/chat/v5/messages/champ-select'
                     chatlog_response = requests.get(chatlog_url, verify=False)
                     chatlog = json.loads(chatlog_response.text)
 
-                    Status_url = requests.get(riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+                    Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
                     Status_url_response = json.loads(Status_url.text)
                     Status = Status_url_response
-                    self.status.setText(f"Status: {Status}")
 
                     if Status == 'ChampSelect':
-                        
-                        chatlog_url = client_api + '/chat/v5/messages/champ-select'
+                        chatlog_url = self.client_api + '/chat/v5/messages/champ-select'
                         chatlog_response = requests.get(chatlog_url, verify=False)
                         chatlog = json.loads(chatlog_response.text)
                         
@@ -483,9 +530,10 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                     if timestamp > last_printed_time:
                                         last_printed_time = timestamp
                                         body = message["body"]
-                                        name = message["name"]
+                                        name = message["game_name"]
+                                        tag = message["game_tag"]
                                         current_time = datetime.now().strftime("%H:%M:%S")
-                                        self.Messages_textedit.append(f"[{current_time}] {name} : {body}")
+                                        self.Messages_textedit.append(f"[{current_time}] {name}#{tag} : {body}")
                             else:
                                 messages_exist = False
                                 self.Messages_textedit.clear()
@@ -493,12 +541,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                             messages_exist = False
                             self.Messages_textedit.clear()
 
-                        url = client_api + '/chat/v5/participants/champ-select'
+                        url = self.client_api + '/chat/v5/participants/champ-select'
                         response = requests.get(url, verify=False)
                         parsed_json = json.loads(response.text)
                         names = []
                         for participant in parsed_json["participants"]:
-                            names.append(participant["name"])
+                            name_with_tag = f"{participant['game_name']}#{participant['game_tag']}"
+                            names.append(name_with_tag)
                         if len(names) >= 1:
                             self.Nickname_label.setText(", ".join(names))
                         else:
@@ -508,13 +557,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                 if checkbox.isChecked():
                                     if checkbox_name == "DeepLOL_check":
                                         if len(names) == 5:
-                                            deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
+                                            deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{self.region}/" + urllib.parse.quote(",".join(names)))
                                             QDesktopServices.openUrl(deeplol_url)
                                             search_performed = True
                                     elif checkbox_name == "OPGG_check":
                                         for i in range(len(names)):
                                             summoner_name = names[i]
-                                            opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
+                                            opgg_get = f"https://www.op.gg/summoners/{self.region}/{summoner_name}"
                                             opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
                                             opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
                                             soup = BeautifulSoup(opgg_search.content, 'html.parser')
@@ -524,8 +573,8 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                                 try:
                                                     json_data = json.loads(script_content)
                                                     summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
-                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
+                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{self.region}/{summoner_id}/renewal'
+                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{self.region}/{summoner_id}/summary'
                                                     response = requests.post(opgg_post, headers=opgg_post_headers)
                                                     response = requests.get(opgg_refresh, headers=opgg_get_headers)
                                                 except json.JSONDecodeError as e:
@@ -535,7 +584,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                             else:
                                                 print('Script tag with id="__NEXT_DATA__" not found')
                                         if len(names) == 5:
-                                            opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
+                                            opgg_url = QUrl(f"https://op.gg/multisearch/{self.region}?summoners=" + urllib.parse.quote(",".join(names)))
                                             QDesktopServices.openUrl(opgg_url)
                                             search_performed = True
                                     elif checkbox_name == "Fow_check":
