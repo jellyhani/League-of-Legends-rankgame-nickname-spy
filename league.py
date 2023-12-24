@@ -18,9 +18,6 @@ process_name = 'LeagueClientUx.exe'
 headers = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36',
     'Accept-Language': 'en-US,en;q=0.9',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Content-Type': 'application/json'
 }
 opgg_get_headers = headers
 headers2 = {
@@ -49,7 +46,7 @@ messages_exist = False
 search_performed = False
 
 class AutoReadyThread(QThread):
-    autoready = pyqtSignal(bool, str, str, str, str, str, str)
+    autoready = pyqtSignal(bool, str, str, str, str, str)
     def __init__(self, main_window, proc_search_thread):
         super().__init__()
         self.main_window = main_window
@@ -57,24 +54,36 @@ class AutoReadyThread(QThread):
         self.proc_search_thread.process_info_updated.connect(self.process_info_updated)
     def run(self):
         while True:
-            Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
-            Status_url_response = json.loads(Status_url.text)
-            Status = Status_url_response
-            if Status == "ReadyCheck":
-                requests.post(self.riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
-                QThread.msleep(100)
-    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
+            if process_name in output:
+                try:
+                    Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
+                    Status_url_response = json.loads(Status_url.text)
+                    Status = Status_url_response
+                    if Status == "ReadyCheck":
+                        requests.post(self.riot_api + '/lol-matchmaking/v1/ready-check/accept', verify=False)
+                        QThread.msleep(100)
+                except Exception as e:
+                    print(f"Error: {e}")
+                    error_message = str(e)
+                    pyperclip.copy(error_message)
+                except requests.exceptions.RequestException as e:
+                    print(f"An error occurred during the request: {e}")
+                    error_message = str(e)
+                    pyperclip.copy(error_message)
+            else:
+                self.quit()
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port):
         self.client_api = client_api
         self.client_token = client_token
         self.riot_api = riot_api
         self.riot_port = riot_port
         self.riot_token = riot_token
         self.client_port = client_port
-        self.region = region
         
 class DodgeThread(QThread):
     dodge_signal = pyqtSignal()
-    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    process_info_updated = pyqtSignal(str, str, str, str, str, str)
     def __init__(self, main_window, proc_search_thread):
         super().__init__()
         self.main_window = main_window
@@ -97,7 +106,6 @@ class DodgeThread(QThread):
                 response = requests.get(self.checker, verify=False).json()
                 self.spell_1Id = response.get("spell1Id")
                 self.spell_2Id = response.get("spell2Id")
-                print(self.spell_1Id, self.spell_2Id)
                 recovery_spell  = {
                     "spell1Id": self.spell_2Id,
                     "spell2Id": self.spell_1Id
@@ -125,18 +133,17 @@ class DodgeThread(QThread):
     def stop(self):
         self.power = False
         self.quit()
-    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port):
         self.client_api = client_api
         self.client_token = client_token
         self.riot_api = riot_api
         self.riot_port = riot_port
         self.riot_token = riot_token
         self.client_port = client_port
-        self.region = region
 
 class statusThread(QThread):
     status_updated = pyqtSignal(str)
-    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    process_info_updated = pyqtSignal(str, str, str, str, str, str)
     def __init__(self, main_window, proc_search_thread):
         super(statusThread, self).__init__()
         self.main_window = main_window
@@ -166,18 +173,17 @@ class statusThread(QThread):
                     pyperclip.copy(error_message)
             else:
                     self.status_updated.emit("Not Connected")
-        self.msleep(100)
-    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+            QThread.msleep(100)
+    def process_info_updated(self, client_api, client_token, riot_api, riot_port, riot_token, client_port):
         self.client_api = client_api
         self.client_token = client_token
         self.riot_api = riot_api
         self.riot_port = riot_port
         self.riot_token = riot_token
         self.client_port = client_port
-        self.region = region
 
 class proc_searchThread(QThread):
-    process_info_updated = pyqtSignal(str, str, str, str, str, str, str)
+    process_info_updated = pyqtSignal(str, str, str, str, str, str)
     def __init__(self, main_window):
         super().__init__()
         self.main_window = main_window
@@ -187,7 +193,6 @@ class proc_searchThread(QThread):
         self.riot_port = ""
         self.riot_token = ""
         self.client_port = ""
-        self.region = ""
         self.process_name = 'LeagueClientUx.exe'
     def run(self):
         while True:
@@ -196,7 +201,7 @@ class proc_searchThread(QThread):
                 if self.process_name in output:
                     command = f'wmic PROCESS WHERE name=\'{self.process_name}\' GET commandline'
                     output = subprocess.check_output(command, shell=True).decode('iso-8859-1')
-                    tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port=", "--region="]
+                    tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port="]
                     for token in tokens:
                         value = output.split(token)[1].split()[0].strip('"')
                         if token == "--riotclient-app-port=":
@@ -207,17 +212,14 @@ class proc_searchThread(QThread):
                             self.riot_port = value
                         if token == "--remoting-auth-token=":
                             self.riot_token = value
-                        if token == "--region=":
-                            self.region = "oce" if value.lower() == "oc1" else value
                     self.riot_api = f'https://riot:{self.riot_token}@127.0.0.1:{self.riot_port}'
                     self.client_api = f'https://riot:{self.client_token}@127.0.0.1:{self.client_port}'
                     self.process_info_updated.emit(
                         self.client_api, self.client_token,
                         self.riot_api, self.riot_port,
                         self.riot_token, self.client_port,
-                        self.region
                     )
-
+                    
                 else:
                     self.riot_api = ""
                     self.client_api = ""
@@ -225,8 +227,7 @@ class proc_searchThread(QThread):
                     self.client_port = ""
                     self.riot_token = ""
                     self.riot_port = ""
-                    self.region = ""
-                    self.process_info_updated.emit("", "", "", "", "", "", "")
+                    self.process_info_updated.emit("", "", "", "", "", "")
             except Exception as e:
                 print(f"Error: {e}")
                 error_message = str(e)
@@ -237,11 +238,7 @@ class proc_searchThread(QThread):
                 self.client_port = ""
                 self.riot_token = ""
                 self.riot_port = ""
-                self.region = ""
-                self.process_info_updated.emit("", "", "", "", "", "", "")
-
-        self.msleep(100)
-        return self.client_api, self.client_token, self.riot_api, self.riot_port, self. riot_token, self.client_port,self.region
+                self.process_info_updated.emit("", "", "", "", "", "")
             
 
 class Ui_League_Multisearch(QtWidgets.QDialog):
@@ -254,7 +251,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.client_port = ""
         self.riot_token = ""
         self.riot_port = ""
-        self.region = ""
 
         #status
         self.statusTimer = QTimer(self)
@@ -263,7 +259,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.statusTimer.start(1000)
 
         League_Multisearch.setObjectName("League_Multisearch")
-        League_Multisearch.resize(506, 452)
+        League_Multisearch.setFixedSize(506, 452)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
@@ -429,14 +425,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
     def update_status_label(self, status):
         self.status.setText(f"Status: {status}")
 
-    def update_process_info(self, client_api, client_token, riot_api, riot_port, riot_token, client_port, region):
+    def update_process_info(self, client_api, client_token, riot_api, riot_port, riot_token, client_port):
         self.client_api = client_api
         self.client_token = client_token
         self.riot_api = riot_api
         self.riot_port = riot_port
         self.riot_token = riot_token
         self.client_port = client_port
-        self.region = region    
 
     def Auto_Ready_Changed(self):
         output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
@@ -446,8 +441,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         else:
             self.autoreadythread.quit()
             self.autoreadythread.terminate()
-
-
 
     def retranslateUi(self, League_Multisearch):
         _translate = QtCore.QCoreApplication.translate
@@ -461,7 +454,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.1  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.2  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Restart.setText(_translate("League_Multisearch", "Restart"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -517,6 +510,10 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                     Status_url_response = json.loads(Status_url.text)
                     Status = Status_url_response
 
+                    regionurl = requests.get(f'{self.client_api}/riotclient/get_region_locale', verify=False)
+                    region_data = regionurl.json()
+                    region = region_data["region"]
+
                     if Status == 'ChampSelect':
                         chatlog_url = self.client_api + '/chat/v5/messages/champ-select'
                         chatlog_response = requests.get(chatlog_url, verify=False)
@@ -540,6 +537,8 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                         except KeyError:
                             messages_exist = False
                             self.Messages_textedit.clear()
+                            error_message = str(e)
+                            pyperclip.copy(error_message)
 
                         url = self.client_api + '/chat/v5/participants/champ-select'
                         response = requests.get(url, verify=False)
@@ -557,13 +556,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                 if checkbox.isChecked():
                                     if checkbox_name == "DeepLOL_check":
                                         if len(names) == 5:
-                                            deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{self.region}/" + urllib.parse.quote(",".join(names)))
+                                            deeplol_url = QUrl(f"https://www.deeplol.gg/multi/{region}/" + urllib.parse.quote(",".join(names)))
                                             QDesktopServices.openUrl(deeplol_url)
                                             search_performed = True
                                     elif checkbox_name == "OPGG_check":
                                         for i in range(len(names)):
                                             summoner_name = names[i]
-                                            opgg_get = f"https://www.op.gg/summoners/{self.region}/{summoner_name}"
+                                            opgg_get = f"https://www.op.gg/summoners/{region}/{summoner_name}"
                                             opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
                                             opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
                                             soup = BeautifulSoup(opgg_search.content, 'html.parser')
@@ -573,18 +572,22 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                                 try:
                                                     json_data = json.loads(script_content)
                                                     summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{self.region}/{summoner_id}/renewal'
-                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{self.region}/{summoner_id}/summary'
+                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/renewal'
+                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{region}/{summoner_id}/summary'
                                                     response = requests.post(opgg_post, headers=opgg_post_headers)
                                                     response = requests.get(opgg_refresh, headers=opgg_get_headers)
                                                 except json.JSONDecodeError as e:
                                                     print(f'Error decoding JSON: {e}')
+                                                    error_message = str(e)
+                                                    pyperclip.copy(error_message)
                                                 except KeyError as e:
                                                     print(f'Error accessing key: {e}')
+                                                    error_message = str(e)
+                                                    pyperclip.copy(error_message)
                                             else:
                                                 print('Script tag with id="__NEXT_DATA__" not found')
                                         if len(names) == 5:
-                                            opgg_url = QUrl(f"https://op.gg/multisearch/{self.region}?summoners=" + urllib.parse.quote(",".join(names)))
+                                            opgg_url = QUrl(f"https://op.gg/multisearch/{region}?summoners=" + urllib.parse.quote(",".join(names)))
                                             QDesktopServices.openUrl(opgg_url)
                                             search_performed = True
                                     elif checkbox_name == "Fow_check":
