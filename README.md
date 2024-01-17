@@ -30,13 +30,16 @@ OP.GG 또는 FOW.KR, DEEPLOL 전적 자동 서치를 지원합니다. <br>
 <br>
 # 사용법
 
-![image](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/assets/62514874/45b72081-361e-4bf0-9726-020d0189da38) <br>
+![image](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/assets/62514874/697b1658-86d8-4d00-9f6a-d29380f01388)
+ <br>
 Nickname -> 현재 픽창 인원들의 닉네임이 나열됩니다. <br>
 닉네임 아래 박스는 현재 픽창에서 친 채팅을 누가 쳤는지 확인 가능합니다. <br>
 Status -> 현재 롤 세션이 어디에 있는지 체크하는 용도입니다. 가끔 에러라고 표시되는데 이경우는 라이엇 서버 또는 본인 인터넷 문제인 경우 입니다. <br>
 op.gg, deeplol, fow -> 자동 전적 검색 기능입니다. 체크시 해당 사이트에서 전적을 검색합니다. <br>
 Auto Ready -> 자동수락 기능입니다. <br>
+Auto Ready 옆 박스는 딜레이입니다(기본값 0초)<br>
 0s dodge -> 체크박스 체크 후 닷지 버튼을 눌러주셔야 합니다. 0초에 닷지합니다. <br>
+마찬가지로 옆에 박스는 딜레이 입니다.(기본값 300ms)<br>
 restart -> 롤 클라이언트를 재시작합니다 (의미 없습니다. 테스트용 버튼) <br>
 dodge -> 닷지를 진행합니다. 0초닷지를 원하실경우 체크박스 체크 후 눌러주세요 <br>
 Github -> 최신버전 업데이트 시 필요할 경우 다운 받으시면 됩니다 <br>
