@@ -13,6 +13,11 @@ lcu api 기반으로 작동합니다.<br>
 
 ![image](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/assets/62514874/4e180f31-df03-460e-b392-fc99c11b3772)<br>
 
+![image](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/assets/62514874/1adec884-db73-4df1-bfd0-e5a75f25c33c)<br>
+![image](https://github.com/jellyhani/League-of-Legends-rankgame-nickname-spy/assets/62514874/d0024079-561f-4183-a035-3dd8e0e3497c)<br>
+
+[라이엇 게임즈 법률관련 문서](https://legal.kr.riotgames.com/league/service#t.0)
+
 제품은 부정행위 프로그램이나 일부 플레이어에게 다른 플레이어가 가질 수 없는 이점을 제공하는 등 플레이어에게 불공정한 이점을 제공할 수 없습니다. <br>
 제품은 가시적 정보로 합리적으로 식별할 수 없는 플레이어의 익명성을 해제할 수 없습니다. <br>
 
