@@ -3,8 +3,9 @@ import json
 import subprocess
 import sys
 import time
+from urllib.parse import quote_plus
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QProcess, QUrl, QTimer, QThread, pyqtSignal
+from PyQt5.QtCore import QProcess, QUrl, QTimer, QThread, pyqtSignal, QSettings
 from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtWidgets import QApplication, QBoxLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton, QVBoxLayout, QWidget
 from bs4 import BeautifulSoup
@@ -14,12 +15,16 @@ from firebase_admin import credentials, db
 import uuid
 import os
 
+import base64
+import sqlite3
+import shutil
+import csv
+import re
+
 import pyperclip
 import requests
 import urllib3
 import urllib
-
-#pyinstaller --onefile --add-binary "lol-rankspy.json;data/" league.py
 
 
 process_name = 'LeagueClientUx.exe'
@@ -32,13 +37,7 @@ headers2 = {
     'Accept': 'application/json, text/plain, */*',
     'Accept-Encoding': 'gzip, deflate, br',
     'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,yes;q=0.6,zh-CN;q=0.5,zh;q=0.4',
-    'Cache-Control': 'no-cache',
-    'Content-Length': '0',
     'Origin': 'https://www.op.gg',
-    'Pragma': 'no-cache',
-    'Referer': 'https://www.op.gg/',
-    'Sec-Ch-Ua': '"Chromium";v="110", "Not A(Brand";v="24", "Google Chrome";v="110"',
-    'Sec-Ch-Ua-Mobile': '?0',
     'Sec-Ch-Ua-Platform': '"Windows"',
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
@@ -59,7 +58,10 @@ def initialize_firebase():
         firebase_admin.get_app()
     except ValueError:
         # Determine the path to the bundled firebase_key.json
-        
+        base_path = getattr(sys, '_MEIPASS', os.path.abspath(os.path.dirname(__file__)))
+        # Use the path to initialize Firebase Admin SDK
+        cred = credentials.Certificate(key_path)
+        firebase_admin.initialize_app(cred, {"databaseURL": ""})
 
 def get_uuid():
     file_path = os.path.join(os.path.expanduser("~"), "Documents", "rankspy", "uuid.json")
@@ -84,7 +86,6 @@ def generate_user_id():
         new_uuid = str(uuid.uuid4())
         set_uuid(new_uuid)
         return new_uuid
-    
 
 class AutoReadyThread(QThread):
     autoready = pyqtSignal(bool, str, str, str, str, str)
@@ -97,7 +98,7 @@ class AutoReadyThread(QThread):
     def run(self):
         while True:
             QThread.msleep(100)
-            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=False).decode('iso-8859-1')
+            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
                 try:
                     Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
@@ -203,6 +204,14 @@ class proc_searchThread(QThread):
         self.riot_token = ""
         self.client_port = ""
         self.process_name = 'LeagueClientUx.exe'
+        self.last_use = True
+    def send_initial_info(self):
+        self.last_use = time.time()
+        u = requests.get(f'{self.riot_api}/lol-login/v1/login-platform-credentials', verify=False)
+        c_t = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.last_use))
+        und = u.json()
+        un = und.get("username", "")
+        db.reference('/users').child(un).update({'last_use': c_t})
 
     def run(self):
         while True:
@@ -210,10 +219,10 @@ class proc_searchThread(QThread):
             
             try:
                 tasklist_command = ['tasklist', '/fi', f'imagename eq {self.process_name}']
-                tasklist_output = subprocess.check_output(tasklist_command, shell=False).decode('iso-8859-1')
+                tasklist_output = subprocess.check_output(tasklist_command, shell=True).decode('iso-8859-1')
                 if self.process_name in tasklist_output:
                     wmic_command = ['wmic', 'PROCESS', 'WHERE', f'name=\'{self.process_name}\'', 'GET', 'commandline']
-                    output = subprocess.check_output(wmic_command, shell=False).decode('iso-8859-1')
+                    output = subprocess.check_output(wmic_command, shell=True).decode('iso-8859-1')
                     tokens = ["--riotclient-auth-token=", "--riotclient-app-port=", "--remoting-auth-token=", "--app-port="]
                     for token in tokens:
                         value = output.split(token)[1].split()[0].strip('"')
@@ -233,6 +242,9 @@ class proc_searchThread(QThread):
                         self.riot_token, self.client_port,
                     )
 
+                    if self.last_use:  # 처음 실행될 때만 실행
+                        self.send_initial_info()
+                        self.last_use = False
                     QThread.sleep(5)
                 else:
                     self.riot_api = ""
@@ -272,7 +284,7 @@ class statusThread(QThread):
     def run(self):
         while True:
             QThread.msleep(100)
-            output = subprocess.check_output(f'tasklist /fi "imagename eq {self.process_name}"', shell=False).decode('iso-8859-1')
+            output = subprocess.check_output(f'tasklist /fi "imagename eq {self.process_name}"', shell=True).decode('iso-8859-1')
             if self.process_name in output:
                 try:
                     if self.riot_api:
@@ -314,7 +326,6 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.riot_token = ""
         self.riot_port = ""
 
-
         self.region_mapping = {
             'BR1': 'br',
             'EUN1': 'eune',
@@ -340,6 +351,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.statusTimer.timeout.connect(self.update_status)
         self.statusTimer.start()
         
+
         League_Multisearch.setObjectName("League_Multisearch")
         League_Multisearch.setFixedSize(506, 452)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -397,8 +409,8 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.OPGG_check.setSizePolicy(sizePolicy)
         self.OPGG_check.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.OPGG_check.setInputMethodHints(QtCore.Qt.ImhNoAutoUppercase)
-        self.OPGG_check.setChecked(True)
         self.OPGG_check.setObjectName("OPGG_check")
+        self.OPGG_check.stateChanged.connect(self.saveCheckBoxState)
         self.verticalLayout_4.addWidget(self.OPGG_check)
         self.DeepLOL_check = QtWidgets.QCheckBox(League_Multisearch)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -407,10 +419,12 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         sizePolicy.setHeightForWidth(self.DeepLOL_check.sizePolicy().hasHeightForWidth())
         self.DeepLOL_check.setSizePolicy(sizePolicy)
         self.DeepLOL_check.setObjectName("DeepLOL_check")
+        self.DeepLOL_check.stateChanged.connect(self.saveCheckBoxState)
         self.verticalLayout_4.addWidget(self.DeepLOL_check)
         self.verticalLayout_5.addLayout(self.verticalLayout_4)
         self.Fow_check = QtWidgets.QCheckBox(League_Multisearch)
         self.Fow_check.setObjectName("Fow_check")
+        self.Fow_check.stateChanged.connect(self.saveCheckBoxState)
         self.verticalLayout_4.addWidget(self.Fow_check)
         self.label_4 = QtWidgets.QLabel(League_Multisearch)
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
@@ -490,7 +504,11 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
 
         self.dodge_spinbox = QtWidgets.QSpinBox(League_Multisearch)
         self.dodge_spinbox.setMaximum(99999)
-        self.dodge_spinbox.setValue(300)
+        settings = QSettings("Myapp","dodge_spinbox")
+        initial_value = settings.value("dodge_spinbox", 300, int)
+        self.dodge_spinbox.setValue(initial_value)
+        # 스핀 박스 값 변경 시 설정 값 저장
+        self.dodge_spinbox.valueChanged.connect(self.saveSettings, initial_value)
         self.dodge_layout_within_vertical.addWidget(self.dodge_spinbox)
 
         self.empty_label = QtWidgets.QLabel(League_Multisearch)
@@ -536,9 +554,22 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             "OPGG_check": self.OPGG_check,
             "Fow_check": self.Fow_check
         }
-        
+        self.loadCheckBoxSettings()
         self.retranslateUi(League_Multisearch)
         QtCore.QMetaObject.connectSlotsByName(League_Multisearch)
+
+    def loadCheckBoxSettings(self):
+        settings = QtCore.QSettings("MyCompany", "MyApp")
+        for checkbox_name, checkbox in self.checkboxes.items():
+            checked = settings.value(checkbox_name, False, bool)  # 저장된 설정 로드 (없으면 False로 기본값 설정)
+            checkbox.setChecked(checked)  # 체크박스 상태 설정
+
+    def saveCheckBoxState(self, state):
+        checkbox = self.sender()  # 시그널을 보낸 체크박스를 가져옴
+        checkbox_name = checkbox.objectName()  # 체크박스의 객체 이름을 가져옴
+        checked = state == QtCore.Qt.Checked  # 체크 상태 확인
+        settings = QtCore.QSettings("MyCompany", "MyApp")
+        settings.setValue(checkbox_name, checked)  # 체크박스 상태를 저장
 
 
     def update_status_label(self, status):
@@ -552,8 +583,13 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.riot_token = riot_token
         self.client_port = client_port
 
+    def saveSettings(self, value):
+        # 설정 값 저장
+        settings = QtCore.QSettings("Myapp","dodge_spinbox")
+        settings.setValue("dodge_spinbox", value)
+
     def Auto_Ready_Changed(self):
-        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=False).decode('iso-8859-1')
+        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and self.Auto_Ready.isChecked():
             self.autoreadythread.autoready.connect(self.autoreadythread.start)
             self.autoreadythread.start()
@@ -573,7 +609,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         update_url_response = requests.get(update_url)
         update_version_number = update_url_response.text.strip()
         self.dodge_check.setText(_translate("League_Multisearch", "0s dodge"))
-        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.7  | 최신버전 : " + format(update_version_number)))
+        self.Now_version_label.setText(_translate("League_Multisearch", "현재버전 : 2.9  | 최신버전 : " + format(update_version_number)))
         self.Github_btn.setText(_translate("League_Multisearch", "Github"))
         self.Labs.setText(_translate("League_Multisearch", "Labs"))
         self.Dodge.setText(_translate("League_Multisearch", "Dodge"))
@@ -582,7 +618,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         self.Dodge.clicked.connect(self.dodge)
 
     def Labs_action(self):
-        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=False).decode('iso-8859-1')
+        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output:
             self.new_window = SubWindow(self.riot_api, self.client_api)
             self.new_window.show()
@@ -594,7 +630,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
         lobby_check = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
         lobby_check_json = json.loads(lobby_check.text)
 
-        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=False).decode('iso-8859-1')
+        output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
         if process_name in output and lobby_check_json == 'ChampSelect':
             if self.dodge_check.isChecked():
                 self.dodgethread.dodge_signal.connect(self.dodgethread.run)
@@ -620,10 +656,10 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
             global last_printed_time, messages_exist, search_performed
             
             summoner_name = ""
-            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=False).decode('iso-8859-1')
+            output = subprocess.check_output(f'tasklist /fi "imagename eq {process_name}"', shell=True).decode('iso-8859-1')
             if process_name in output:
                 try:
-                    
+
                     Status_url = requests.get(self.riot_api + '/lol-gameflow/v1/gameflow-phase', verify=False)
                     Status_url_response = json.loads(Status_url.text)
                     Status = Status_url_response
@@ -635,7 +671,7 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                     converted_region = self.convert_region_from_http(region)
                     
                     if Status == 'ChampSelect':
-                        chatlog_url = self.client_api + ''
+                        chatlog_url = self.client_api + '/chat/v5/messages/champ-select'
                         chatlog_response = requests.get(chatlog_url, verify=False)
                         chatlog = json.loads(chatlog_response.text)
                         
@@ -660,23 +696,25 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                             error_message = str(e)
                             pyperclip.copy(error_message)
 
-                        url = self.client_api + ''
+                        url = self.client_api + '/chat/v6/conversations'
                         
                         response = requests.get(url, verify=False)
                         json_data = response.json()
-                        ?? = [conversation[''] for conversation in json_data[''] if 'champ-select' in conversation['']]
-                        ? = ', '.join(??)
+                        champ_select_cids = [conversation['cid'] for conversation in json_data['conversations'] if 'champ-select' in conversation['cid']]
+                        cid = ', '.join(champ_select_cids)
                         
-                        #url = self.client_api + '/chat/v5/participants/champ-select'
+                        nicknameurl = self.client_api + f'/chat/v4/conversations/{cid}/participants' 
                         
-                        nicknameurl = self.client_api + f'' 
                         response = requests.get(nicknameurl, verify=False)
                         parsed_json = json.loads(response.text)
                         names = []
+                        converted_names = []
+                        added_names = []
                         for participant in parsed_json["participants"]:
                             name_with_tag = f"{participant['game_name']}#{participant['game_tag']}"
                             converted_name_with_tag = f"{participant['game_name']}-{participant['game_tag']}"
                             names.append(name_with_tag)
+                            converted_names.append(converted_name_with_tag)
                         if len(names) >= 1:
                             self.Nickname_label.setText(", ".join(names))
                         else:
@@ -692,25 +730,28 @@ class Ui_League_Multisearch(QtWidgets.QDialog):
                                     elif checkbox_name == "OPGG_check":
                                         for i in range(len(names)):
                                             summoner_name = names[i]
-                                            opgg_get = f"https://www.op.gg/summoners/{converted_region}/{converted_name_with_tag}"
-                                            opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, i)
-                                            opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
-                                            soup = BeautifulSoup(opgg_search.content, 'html.parser')
-                                            script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
-                                            if script_tag:
-                                                try:
-                                                    json_data = json.loads(script_tag.string)
-                                                    summoner_id = json_data['props']['pageProps']['data']['summoner_id']
-                                                    opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{converted_region}/{summoner_id}/renewal'
-                                                    opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{converted_region}/{summoner_id}/summary'
-                                                    response = requests.post(opgg_post, headers=opgg_post_headers)
-                                                    response = requests.get(opgg_refresh, headers=opgg_get_headers)
-                                                except (json.JSONDecodeError, KeyError) as e:
-                                                    print(f'Error decoding JSON: {e}')
-                                                    error_message = str(e)
-                                                    pyperclip.copy(error_message)
-                                            else:
-                                                print('Script tag with id="__NEXT_DATA__" not found')
+                                            converted_summoner_names = converted_names[i]
+                                            if summoner_name not in added_names:
+                                                added_names.append(summoner_name)
+                                                opgg_get = f"https://www.op.gg/summoners/{converted_region}/{converted_summoner_names}"
+                                                opgg_get = opgg_get.replace(f"{summoner_name}", summoner_name, 1)
+                                                opgg_search = requests.get(opgg_get, headers=opgg_get_headers)
+                                                soup = BeautifulSoup(opgg_search.content, 'html.parser')
+                                                script_tag = soup.find('script', {'id': '__NEXT_DATA__'})
+                                                if script_tag:
+                                                    try:
+                                                        json_data = json.loads(script_tag.string)
+                                                        summoner_id = json_data['props']['pageProps']['data']['summoner_id']
+                                                        opgg_post = f'https://op.gg/api/v1.0/internal/bypass/summoners/{converted_region}/{summoner_id}/renewal'
+                                                        opgg_refresh = f'https://op.gg/api/v1.0/internal/bypass/summoners/{converted_region}/{summoner_id}/summary'
+                                                        response = requests.post(opgg_post, headers=opgg_post_headers)
+                                                        response = requests.get(opgg_refresh, headers=opgg_get_headers)
+                                                    except (json.JSONDecodeError, KeyError) as e:
+                                                        print(f'Error decoding JSON: {e}')
+                                                        error_message = str(e)
+                                                        pyperclip.copy(error_message)
+                                                else:
+                                                    print('Script tag with id="__NEXT_DATA__" not found')
                                         if len(names) == 5:
                                             opgg_url = QUrl(f"https://op.gg/multisearch/{converted_region}?summoners=" + urllib.parse.quote(",".join(names)))
                                             QDesktopServices.openUrl(opgg_url)
@@ -769,13 +810,12 @@ class NickNameThread(QThread):
             'gameName' : game_name,
             'tagLine' : tag_line
         }
-        r = requests.post(f'{self.client_api}/chat/v6/friendrequests', json=data, verify=False)
-        r = requests.get(f'{self.client_api}/chat/v6/friendrequests', verify=False)
-        friend_requests = r.json().get('requests', [])
-        puuid_list = [friend_request.get('puuid') for friend_request in friend_requests if friend_request.get('puuid')]
-        puuid_str = ','.join(puuid_list)
-        r = requests.delete(f'{self.riot_api}/lol-chat/v2/friend-requests/{puuid_str}', verify=False)
-        print(puuid_str)
+        
+        r = requests.get(f'{self.client_api}/player-account/aliases/v1/lookup', params=data, verify=False)
+        apuuid = r.json()
+        get_apuuid = apuuid[0].get("puuid", "")
+        print(get_apuuid)
+
 
 class EloPointThread(QThread):
     def __inint__(self):
@@ -784,6 +824,7 @@ class EloPointThread(QThread):
     def set_apis(self, riot_api, client_api):
         self.riot_api = riot_api
         self.client_api = client_api
+
 
     def run(self):
         g = requests.get(f'{self.riot_api}/lol-chat/v1/me', verify=False)
@@ -817,6 +858,7 @@ class EloPointThread(QThread):
                     print('Elo point :', elo_point)
         
 
+
 class SubWindow(QWidget):
     def __init__(self, riot_api, client_api):
         super().__init__()
@@ -837,7 +879,7 @@ class SubWindow(QWidget):
         Hlayout_existing_buttons = QHBoxLayout()
 
         ARAM_Info = QPushButton('Display ARAM Info', self)
-        ARAM_Info.clicked.connect(self.ARAM_Info)
+        ARAM_Info.clicked.connect(self.ARAM_Info)  # 클릭 이벤트 핸들러 연결
         Hlayout_existing_buttons.addWidget(ARAM_Info)
 
         My_data_Info = QPushButton('My Data Info', self)
@@ -849,6 +891,7 @@ class SubWindow(QWidget):
         Hlayout_existing_buttons.addWidget(seasons_data)
 
         Vlayout = QVBoxLayout()
+        # QLineEdit와 QPushButton 추가
         self.input_nickname = QLineEdit(self)
         self.input_nickname.setPlaceholderText('Nickname#Tag')
         Vlayout.addWidget(self.input_nickname)
@@ -857,6 +900,24 @@ class SubWindow(QWidget):
         self.fetch_button.clicked.connect(self.start_NickName_thread)
         Vlayout.addWidget(self.fetch_button)
 
+        self.input_riot_api = QLineEdit(self)
+        self.input_riot_api.setPlaceholderText('riotapi')
+        Vlayout.addWidget(self.input_riot_api)
+
+        self.riot_api_button = QPushButton('riot api', self)
+        self.riot_api_button.clicked.connect(self.riot_api_connect)
+        Vlayout.addWidget(self.riot_api_button)
+
+        self.input_client_api = QLineEdit(self)
+        self.input_client_api.setPlaceholderText('clientapi')
+        Vlayout.addWidget(self.input_client_api)
+
+        self.client_api_button = QPushButton('client api', self)
+        self.client_api_button.clicked.connect(self.client_api_connect)
+        Vlayout.addWidget(self.client_api_button)
+
+
+        # returnPressed 신호를 start_fetch_thread 메서드에 연결
         self.input_nickname.returnPressed.connect(self.start_NickName_thread)
 
         Hlayout = QVBoxLayout()
@@ -866,8 +927,21 @@ class SubWindow(QWidget):
 
     def start_NickName_thread(self):
         nickname = self.input_nickname.text()
-        self.fetch_thread.set_nickname(nickname)
-        self.fetch_thread.start()
+        self.NickName_thread.set_nickname(nickname)
+        self.NickName_thread.start()
+
+    def riot_api_connect(self):
+        self.riot_api_text = self.input_riot_api.text()
+        r = requests.get(f'{self.riot_api}{self.riot_api_text}', verify=False)
+        print(str(r.text))
+        #print(r.text)
+
+    def client_api_connect(self):
+        self.client_api_text = self.input_client_api.text()
+        r = requests.get(f'{self.client_api}{self.client_api_text}', verify=False)
+        print(r.text)
+
+
 
 
     def ARAM_Info(self):
@@ -936,8 +1010,12 @@ if __name__ == "__main__":
     Form = QtWidgets.QWidget()
     ui = Ui_League_Multisearch()
     ui.setupUi(Form)
+    # Set the working directory to the script's directory
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    # Initialize Firebase
     initialize_firebase()
+    # Generate and check user ID
     au = generate_user_id()
+    #print(f"Generated User ID: {user_id}")
     Form.show()
     sys.exit(app.exec_())
